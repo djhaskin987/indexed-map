@@ -1,7 +1,8 @@
 (ns ranked-set.core-test
   (:require [clojure.test :refer :all]
             [ranked-set.core :refer :all]))
-(import 'ranked_set.core.ranked_set)
+;(import 'ranked_set.core.RankedSet)
+(import 'ranked_set.core.RBTreeRankedSet)
 (deftest nil-add
   (testing "Adding to a nil ranked set.")
              (is (= (add nil 1 2) nil)))
@@ -14,6 +15,11 @@
 (deftest nil-size
   (testing "Getting size from a nil set.")
          (is (= (size nil) 0)))
+
+
+(deftest rbtree-create
+  (testing "Creating a new rbtree-ranked-set.")
+    (is (= (ranked-set) (RBTreeRankedSet. nil nil nil nil 0))))
 
 ;; Add a test for erroring on incorrect rank given to the functions (<0,>size)
 ;;
