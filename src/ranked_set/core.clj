@@ -1,40 +1,58 @@
 (ns ranked-set.core)
 
-(defprotocol RankedSet
-  "Retrieve elements by the rank of their magnitude."
-  (add [rset value magnitude] "Add a value and its magnitude to the set.")
-  (retrieve [rset rank] "Retrieve value by its magnitude's rank.")
-  (cut [rset rank] "Remove a value by its magnitude's rank.")
-  (size [rset] "Get the number of values stored in the set."))
+(defmacro if_cmp_ascending
+  [value threshold less equal greater]
+  `(let [val# ~value
+        thresh# ~threshold]
+    (if (< val# thresh#)
+      ~less
+      (if (< thresh# val#)
+        ~greater
+        ~equal))))
 
-(extend-protocol RankedSet
-  nil
-  (add [rset value magnitude] nil)
-  (retrieve [rset rank] nil)
-  (cut [rset rank] nil)
-  (size [rset] 0))
-   ;; get contains disjoin count cons empty equiv seq count
+(defmacro if_cmp_descending
+  [value threshold greater equal less]
+  `(let [val# ~value
+        thresh# ~threshold]
+    (if (< val# thresh#)
+      ~less
+      (if (< thresh# val#)
+        ~greater
+        ~equal))))
 
-(defrecord RBTreeRankedSet [left right value magnitude children])
-(extend-protocol RankedSet
-  RBTreeRankedSet
-  (add [rset value magnitude]
-    (let [left (.left rset)
-          right (.right rset)
-          value (.value rset)
-          magnitude (.magnitude rset)
-          children (.children rset)]
-      (cond (nil? value)
-              (RBTreeRankedSet. left right value magnitude (inc children))
-            :else nil)))
-  (retrieve [rset rank])
-  (cut [rset rank])
-  (size [rset]))
+(defrecord RankedNode [Left Payload Magnitude RankSum Right])
 
-(defn ranked-set []
-  (RBTreeRankedSet. nil nil nil nil 0))
-
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(defn empty-ranked-set
+  "Creates an empty ranked set." []
+  (->RankedNode nil nil nil nil nil))
+(defn ranked-set-add
+  "Adds to a ranked set."
+  [rnode element magnitude]
+  (let [{Left :Left Payload :Payload RankSum :RankSum
+         Magnitude :Magnitude Right :Right}
+        rnode]
+  ; If the magnitude is nil, the node is assumed to be the empty set!
+  ; This is reasonable because the magnitude must be comparable, and nil is not.
+  (if (nil? Magnitude)
+    (->RankedNode Left element magnitude 1 Right)
+    (if_cmp_descending magnitude Magnitude
+            (->RankedNode
+              (ranked-set-add Left element magnitude)
+              Payload
+              Magnitude
+              (inc RankSum)
+              Right)
+            ;; If the Magnitudes are equal,
+            ;; Don't do anything
+            (->RankedNode
+              Left
+              Payload
+              Magnitude
+              RankSum
+              Right)
+            (->RankedNode
+              Left
+              Payload
+              Magnitude
+              RankSum
+              (ranked-set-add Right element Magnitude))))))

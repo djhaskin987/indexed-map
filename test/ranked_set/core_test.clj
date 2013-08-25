@@ -1,25 +1,27 @@
 (ns ranked-set.core-test
   (:require [clojure.test :refer :all]
             [ranked-set.core :refer :all]))
-;(import 'ranked_set.core.RankedSet)
-(import 'ranked_set.core.RBTreeRankedSet)
-(deftest nil-add
-  (testing "Adding to a nil ranked set.")
-             (is (= (add nil 1 2) nil)))
-(deftest nil-retrieve
-  (testing "Retrieving from a nil ranked set.")
-         (is (= (retrieve nil 1) nil)))
-(deftest nil-cut
-  (testing "Cutting from a nil ranked set.")
-         (is (= (cut nil 1) nil)))
-(deftest nil-size
-  (testing "Getting size from a nil set.")
-         (is (= (size nil) 0)))
 
+(deftest ranked-set-add-test-nil
+         (testing "Adding to a nil set..."
+                  (is (= (ranked-set-add nil 1 5)
+                         (->RankedNode nil 1 5 1 nil))))
+         (testing "Adding to an empty set."
+                  (is (= (ranked-set-add (empty-ranked-set) 2 5)
+                         (->RankedNode nil 2 5 1 nil)))))
 
-(deftest rbtree-create
-  (testing "Creating a new rbtree-ranked-set.")
-    (is (= (ranked-set) (RBTreeRankedSet. nil nil nil nil 0))))
-
-;; Add a test for erroring on incorrect rank given to the functions (<0,>size)
-;;
+(deftest ranked-set-add-tree
+         (let [first-test-tree
+               (->RankedNode
+                 (->RankedNode nil 'a 18 1 nil)
+                 'b 10 2
+                 (->RankedNode nil 'c 2 3 nil))]
+           (testing "Creating a tree."
+                    (= first-test-tree
+                       (ranked-set-add
+                         (ranked-set-add
+                           (ranked-set-add
+                             (empty-ranked-set)
+                             'b 10)
+                           'a 18)
+                         'c 2)))))
