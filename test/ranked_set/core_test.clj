@@ -9,7 +9,9 @@
          (testing "Adding to an empty set."
                   (is (= (ranked-set-add (empty-ranked-set) 2 5)
                          (->RankedNode nil 2 5 1 nil)))))
-
+; TODO: Add a test which tests the path of:
+; If I attempt to add an element with equivalent magnitude,
+; I don't add it to my set.
 (deftest ranked-set-add-tree
          (let [first-test-tree
                (->RankedNode
