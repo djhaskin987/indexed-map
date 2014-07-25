@@ -7,3 +7,9 @@ pom.xml
 .lein-failures
 .lein-repl-history
 /target/
+*/.*#
+*/.#*
+*/*~
+.*#
+.#*
+*~
