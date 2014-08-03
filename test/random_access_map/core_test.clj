@@ -2,29 +2,69 @@
   (:require [clojure.test :refer :all]
             [random-access-map.core :refer :all]))
 
-(deftest random-access-map-add-test-nil
-         (testing "Adding to a nil set..."
-                  (is (= (random-access-map-add nil 1 5)
-                         (->RankedNode nil 1 5 1 nil))))
-         (testing "Adding to an empty set."
-                  (is (= (random-access-map-add (empty-random-access-map) 2 5)
-                         (->RankedNode nil 2 5 1 nil)))))
+(defn- violates-red-invariant?
+  "Determines whether there are any red-red parent-child pairs in the tree."
+  [tree]
+  (if (empty? tree)
+    false
+    (if (and (= (color tree) :red)
+             (or (and (not (empty? (ltree tree)))
+                      (= :red (color (ltree tree))))
+                 (and (not (empty? (rtree tree)))
+                      (= :red (color (rtree tree))))))
+      true
+      (or (violates-red-invariant? (ltree tree))
+          (violates-red-invariant? (rtree tree))))))
 
-; TODO: Add a test which tests the path of:
-; If I attempt to add an element with equivalent magnitude,
-; I don't add it to my set.
-(deftest random-access-map-add-tree
-         (let [first-test-tree
-               (->RankedNode
-                 (->RankedNode nil 'a 18 1 nil)
-                 'b 10 2
-                 (->RankedNode nil 'c 2 3 nil))]
-           (testing "Creating a tree."
-                    (= first-test-tree
-                       (random-access-map-add
-                         (random-access-map-add
-                           (random-access-map-add
-                             (empty-random-access-map)
-                             'b 10)
-                           'a 18)
-                         'c 2)))))
+(defn- height
+  "Computes the height of a tree."
+  [tree]
+  (if (empty? tree)
+    0
+    (max (inc (height (ltree)))
+         (inc (height (rtree))))))
+
+(defn- black-height
+  "Computes the black height of a tree."
+  [tree]
+  (if (empty? tree)
+    1
+    (let [node-count
+          (if (= :black (color tree))
+            1
+            0)]
+      (+ node-count
+         (max (black-height (ltree tree))
+              (black-height (rtree tree)))))))
+
+(defn- violates-black-invariant?
+  "Determines whether tree has unequal black heights for its branches."
+  [tree]
+  (if (empty? tree)
+    false
+    (if (= (black-height (ltree tree)) (black-height (rtree tree)))
+      false
+      true)))
+
+(defn- balanced?
+  "Determines if a red-black tree is balanced"
+  [tree]
+  (not (or (violates-red-invariant? tree)
+           (violates-black-invariant? tree))))
+
+(deftest random-access-map-insert-balanced
+  "Testing for proper balancing on insert"
+  (testing "Inserting a list in ascending order from 1 to 10..."
+    (is (balanced? (reduce insert-val nil (range 10)))))
+  (testing "Inserting a list in descending order from 10 to 1..."
+    (is (balanced? (reduce insert-val nil (range 10 0 -1)))))
+  (testing "Inserting a list in a wierd, but orderly, order..."
+    (is (balanced? (reduce insert-val nil [5 4 6 3 7 2 8 1 9 0 10]))))
+  (testing "Checking an empty set for balance..."
+    (is (balanced? nil)))
+  (testing "Checking for balance of a one-item set..."
+    (is (balanced? (insert-val nil 1))))
+  (testing "Some good stuff: Inserting a list in ascending order from 1 to 100..."
+    (is (balanced? (reduce insert-val nil (range 100)))))
+  (testing "Some good stuff: Inserting a list in descending order from 100 to 1..."
+    (is (balanced? (reduce insert-val nil (range 100 1 -1))))))

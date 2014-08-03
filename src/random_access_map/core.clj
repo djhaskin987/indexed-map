@@ -1,157 +1,170 @@
 (ns random-access-map.core
+  (:require [clojure.core.match :refer [match]])
   (:gen-class))
 
-(defmacro if_cmp
-  [value threshold less equal greater]
-  `(let [val# ~value
-         thresh# ~threshold
-         cmp_val# (compare val# thresh#)]
-     (if (< cmp_val# 0)
-       ~less
-       (if (< 0 cmp_val#)
-         ~greater
-         ~equal))))
+(def black-leaf [:black])
+(def double-black-leaf [:double-black])
 
-#_(type/defalias color
-  (type/U ':red ':black ':white ':double-black))
-#_(type/defalias number
-    (type/U java.lang.Number
-            clojure.lang.BigInt
-            clojure.lang.Ratio))
-; ranked tree
-(deftype IndexedTree [ltree
-                     key
-                     val
-                     size
-                     color
-                     rtree])
+(defn empty-ras
+  "Creates an empty ras."
+  []
+  black-leaf)
 
-; can be black or double black.
-(deftype IndexedLeaf [color])
+(defn ras-empty?
+  "Determines if a tree is empty."
+  [tree]
+  (match tree
+         [black-leaf] true
+         [double-black-leaf] true
+         :else false))
 
-(def black-leaf (IndexedLeaf. :black))
-(def double-black-leaf (IndexedLeaf. :double-black))
+(defn color
+  "Gets the color of a tree node."
+  [tree]
+  (nth tree 0))
+(defn ltree
+  "Gets the left tree of a tree node."
+  [tree]
+  (nth tree 1))
+(defn elem
+  "Gets the element of a tree node."
+  [tree]
+  (nth tree 2))
+(defn rtree
+  "Gets the right tree of a tree node."
+  [tree]
+  (nth tree 3))
 
-; Only until we use the standard ones.
-(defprotocol random-access-map
-  (empty? [this] "Returns whether this set is empty")
-  (count [this] "Returns the number of key/value pairs in this map")
-  (contains? [this key] "Detects whether the key/value pair whose key matches <key> is present in this map")
-  (get [this key] "Gets the value associated with <key> in this map")
-  (nth [this index] "Gets the nth key/value pair")
-  (assoc [this key val] "Add a keyed element to the map"))
-; This is to come.
-;  (dissoc [this key] "Return a map with the key removed"))
+(defn- decblack
+  [color]
+  (match [color]
+         [:black] :red
+         [:double-black] :black
+         [:red] :negative-black
+         [[color a x b]] [(decblack color) a x b]
+         :else color))
 
-(extend-protocol random-access-map
-  IndexedLeaf
-  (empty? [this] true)
-  (count [this] 0)
-  (contains? [this] false)
-  (get [this key]
-    (throw (ex-info "Cannot get a value from a leaf."
-                    {:type :random-access-map/leaf/get})))
-  (nth [this index]
-    (throw (ex-info "Cannot get a value from a leaf."
-                    {:type :random-access-map/leaf/nth})))
-  (assoc [this key val]
-    (IndexedTree. (IndexedLeaf. :black) key val :red 1 (IndexedLeaf. :black)))
-  (dissoc [this key]
-    (throw (ex-info "Cannot remove a k/v pair from a leaf."
-                    {:type :random-access-map/leaf/dissoc
-                     :attempt :dissoc}))))
+(defn- incblack
+  [color]
+  (match [color]
+         [:black] :double-black
+         [:red] :black
+         [:negative-black] :red
+         [[color a x b]] [(incblack color) a x b]
+         :else color))
 
-(defn- remove-max [tree]
-  (cond (empty? tree)
-        (throw (ex-info "Cannot remove a k/v pair from a leaf."
-                        {:type :random-access-map/leaf/dissoc
-                         :attempt :remove-max}))
-        (empty? (.rtree tree))
-        [(.ltree tree)
-         (.key tree)
-         (.val tree)]
-        :else
-        (let [[rettree key val] (remove-max (.rtree tree))]
-          [(IndexedTree. (.ltree tree)
-                         (.key tree)
-                         (.val tree)
-                         (dec (.size tree))
-                         (.color tree)
-                         rettree)
-           key val])))
+(defn- balance
+  "Ensures the given subtree stays balanced by rearranging black nodes
+  that have at least one red child and one red grandchild"
+  [tree]
+  (match [tree]
+         [(:or ;; Left child red with left red grandchild
+               [(:or :black :double-black) [:red [:red a x b] y c] z d]
+               ;; Left child red with right red grandchild
+               [(:or :black :double-black) [:red a x [:red b y c]] z d]
+               ;; Right child red with left red grandchild
+               [(:or :black :double-black) a x [:red [:red b y c] z d]]
+               ;; Right child red with right red grandchild
+               [(:or :black :double-black) a x [:red b y [:red c z d]]])]
+         ; =>
+         [(decblack (color tree)) [:black a x b] y [:black c z d]]
+         [[:double-black [:negative-black
+                          [:black a w b]
+                          x
+                          [:black c y d]]
+           z
+           e]]
+         [:black
+          [:black (balance [:red a w b]) x c]
+          y
+          [:black d z e]]
+         ; now the symmetric case ...
+         [[:double-black e z
+           [:negative-black
+            [:black d y c]
+            x
+            [:black b w a]]]]
+         [:black [:black e z d]
+          y
+          [:black c x (balance [:red b w a])]]
+         :else
+         tree))
 
-(extend-type IndexedTree
-  random-access-map
-  (count [this]
-    (.size this))
-  (empty? [this] false)
-  (contains? [this key]
-    (if_cmp key (.key this)
-            (contains? (.ltree this) key)
-            true
-            (contains? (.rtree this) key)))
-  (get [this key]
-    (if_cmp key (.key this)
-            (get (.ltree this) key)
-            (.val this)
-            (get (.rtree this) key)))
-  (nth [this index]
-    (if (or (> index (count this)) (< index 0))
-      (throw (ex-info (str "Index '" index "' is out of the range [0,"
-                           (count this) ").")
-                      {:type :random-access-map-rat/out-of-range}))
-      (let [lsize (count (.ltree this))]
-        (if_cmp lsize index
-                (nth (.rtree this) (- index lsize 1))
-                (.elem this)
-                (nth (.ltree this) index)))))
-  (assoc [this key val]
-    (if_cmp key (.key this)
-            (IndexedTree. (assoc (.ltree this) key val)
-                          (.key this)
-                          (.val this)
-                          (inc (.size this))
-                          (.color this)
-                          (.rtree this))
-            (IndexedTree. (.ltree this)
-                          key
-                          val
-                          (.size this)
-                          (.color this)
-                          (.rtree this))
-            (IndexedTree. (.ltree this)
-                          (.key this)
-                          (.val this)
-                          (inc (.size this))
-                          (.color this)
-                          (assoc (.rtree this) key val))))
-  (dissoc [this key]
-    (if_cmp key (.key this)
-            (IndexedTree. (dissoc (.ltree this) key val)
-                          (.key this)
-                          (.val this)
-                          (dec (.size this))
-                          (.color this)
-                          (.rtree this))
-            (cond (and (empty? (.ltree this))
-                       (empty? (.rtree this)))
-                  black-leaf
-                  (empty? (.ltree this))
-                  (.rtree this)
-                  (empty? (.rtree this))
-                  (.ltree this)
-                  :else
-                  (let [[rettree key val]
-                        (remove-max (.ltree this))]
-                    (IndexedTree. rettree
-                                  key
-                                  val
-                                  (dec (.size this))
-                                  (.color this)
-                                  (.rtree this))))
-            (IndexedTree. (.ltree this)
-                          (.key this)
-                          (.val this)
-                          (dec (.size this))
-                          (.color this)
-                          (dissoc (.rtree this) key val)))))
+(defn insert-val
+  "Inserts x in tree.
+  Returns a node with x and no children if tree is empty.
+  Returned tree is balanced. See also `balance`"
+  [tree x]
+  (let [ins (fn ins [tree]
+              (match tree
+                     [black-leaf] [:red black-leaf x black-leaf]
+                     [color a y b] (let [condition (compare x y)]
+                                     (< condition 0) (balance [color (ins a) y b])
+                                     (< 0 condition) (balance [color a y (ins b)]))
+                                     :else tree))
+        [_ a y b] (ins tree)] [:black a y b]))
+
+(declare remove-val)
+
+(defn remove-max
+  "Remove the maximum element of a tree."
+  [tree]
+  (let [[c a x b] tree]
+    (if (ras-empty? b)
+      [x (remove-raw tree)]
+      (let [[el b'] (remove-max b)]
+        [el (bubble c a x b')]))))
+
+(defn- bubble
+  "suds and bath water!"
+  [color left elem right]
+  (if
+   (or (= (color left) :double-black)
+       (= (color right) :double-black))
+   (balance [(incblack color) (decblack left) elem (decblack right)])
+   [color left elem right]))
+
+(defn- raw-remove
+  "Compute a new tree with value removed, except unbalanced at first."
+  [tree]
+  (match tree
+         [[:red black-leaf _ black-leaf]] black-leaf
+         [[:black black-leaf _ black-leaf]] double-black-leaf
+         [(:or [:black black-leaf x [:red a y b]]
+               [:black [:red a y b] x black-leaf])]
+         ; =>
+         [:black a y b]
+         :else
+         (let [[c l x r] tree
+               [el l'] (remove-max l)]
+           [c l' el r])))
+
+(defn remove-val
+  "Compute a new tree with value removed."
+  [tree val]
+  (if (ras-empty? tree)
+    tree
+    (let [[color left elem right] tree
+          condition (compare val elem)]
+      (cond (< condition 0) (bubble color (remove-val left val) elem right)
+            (< 0 condition) (bubble color left elem (remove-val right val))
+            :else
+            (remove-raw tree))
+  (let [ins (fn ins [tree]
+              (match tree
+                     black-leaf [:red black-leaf x black-leaf]
+                     [color a y b] (let [condition (compare x y)]
+                                     (< condition 0) (balance [color (ins a) y b])
+                                     (< 0 condition) (balance [color a y (ins b)]))
+                                     :else tree)
+                     [_ a y b] (ins tree)] [:black a y b])))
+(defn find-val
+  "Finds value x in tree"
+  [tree x]
+  (match tree
+         [black-leaf] nil
+         [_ a y b] (let [condition (compare x y)]
+                     (cond
+                      (< condition 0) (recur a x)
+                      (< 0 condition) (recur b x)
+                      :else x))))
