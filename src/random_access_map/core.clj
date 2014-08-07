@@ -18,10 +18,10 @@
 (defn color
   "Gets the color of a tree node."
   [tree]
-  (match tree
-         [color _ _ _] color
-         :black-leaf :black
-         :double-black-leaf :double-black))
+  (match [tree]
+         [[color _ _ _]] color
+         [:black-leaf] :black
+         [:double-black-leaf] :double-black))
 
 (defn ltree
   "Gets the left tree of a tree node."
@@ -124,12 +124,12 @@
 
 (defn- bubble
   "Suds and bath water!"
-  [color left elem right]
+  [c l e r]
   (if
-      (or (= (color left) :double-black)
-          (= (color right) :double-black))
-    (balance [(incblack color) (lighten left) elem (lighten right)])
-    [color left elem right]))
+      (or (= (color l) :double-black)
+          (= (color r) :double-black))
+    (balance [(incblack c) (lighten l) e (lighten r)])
+    [c l e r]))
 
 (declare remove-raw)
 (defn remove-max
