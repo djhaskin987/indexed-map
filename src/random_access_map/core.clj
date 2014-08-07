@@ -2,56 +2,74 @@
   (:require [clojure.core.match :refer [match]])
   (:gen-class))
 
-(def black-leaf [:black])
-(def double-black-leaf [:double-black])
-
 (defn empty-ras
   "Creates an empty ras."
   []
-  black-leaf)
+  :black-leaf)
 
 (defn ras-empty?
   "Determines if a tree is empty."
   [tree]
-  (match tree
-         [black-leaf] true
-         [double-black-leaf] true
+  (match [tree]
+         [:black-leaf] true
+         [:double-black-leaf] true
          :else false))
 
 (defn color
   "Gets the color of a tree node."
   [tree]
-  (nth tree 0))
+  (match tree
+         [color _ _ _] color
+         :black-leaf :black
+         :double-black-leaf :double-black))
+
 (defn ltree
   "Gets the left tree of a tree node."
   [tree]
-  (nth tree 1))
+  (let [[color left elem right] tree]
+    left))
+
 (defn elem
   "Gets the element of a tree node."
   [tree]
-  (nth tree 2))
+  (let [[color left elem right] tree]
+    elem))
+
 (defn rtree
   "Gets the right tree of a tree node."
   [tree]
-  (nth tree 3))
+  (let [[color left elem right] tree]
+    right))
 
 (defn- decblack
   [color]
-  (match [color]
-         [:black] :red
-         [:double-black] :black
-         [:red] :negative-black
-         [[color a x b]] [(decblack color) a x b]
+  (match color
+         :black :red
+         :double-black :black
+         :red :negative-black
          :else color))
+
+(defn- lighten
+  [tree]
+  (match tree
+         [color a x b] [(decblack color) a x b]
+         :double-black-leaf :black-leaf
+         :else tree))
 
 (defn- incblack
   [color]
-  (match [color]
-         [:black] :double-black
-         [:red] :black
-         [:negative-black] :red
-         [[color a x b]] [(incblack color) a x b]
+  (match color
+         :black :double-black
+         :red :black
+         :negative-black :red
          :else color))
+
+(defn- darken
+  [tree]
+  (match tree
+         [color a x b] [(incblack color) a x b]
+         :black-leaf :double-black-leaf
+         :else tree))
 
 (defn- balance
   "Ensures the given subtree stays balanced by rearranging black nodes
@@ -97,41 +115,40 @@
   [tree x]
   (let [ins (fn ins [tree]
               (match tree
-                     [black-leaf] [:red black-leaf x black-leaf]
+                     :black-leaf [:red :black-leaf x :black-leaf]
                      [color a y b] (let [condition (compare x y)]
                                      (< condition 0) (balance [color (ins a) y b])
                                      (< 0 condition) (balance [color a y (ins b)]))
                                      :else tree))
         [_ a y b] (ins tree)] [:black a y b]))
 
-(declare remove-val)
+(defn- bubble
+  "Suds and bath water!"
+  [color left elem right]
+  (if
+      (or (= (color left) :double-black)
+          (= (color right) :double-black))
+    (balance [(incblack color) (lighten left) elem (lighten right)])
+    [color left elem right]))
 
+(declare remove-raw)
 (defn remove-max
   "Remove the maximum element of a tree."
   [tree]
   (let [[c a x b] tree]
     (if (ras-empty? b)
       [x (remove-raw tree)]
-      (let [[el b'] (remove-max b)]
-        [el (bubble c a x b')]))))
+      (let [[el' b'] (remove-max b)]
+        [el' (bubble c a x b')]))))
 
-(defn- bubble
-  "suds and bath water!"
-  [color left elem right]
-  (if
-   (or (= (color left) :double-black)
-       (= (color right) :double-black))
-   (balance [(incblack color) (decblack left) elem (decblack right)])
-   [color left elem right]))
-
-(defn- raw-remove
+(defn- remove-raw
   "Compute a new tree with value removed, except unbalanced at first."
   [tree]
   (match tree
-         [[:red black-leaf _ black-leaf]] black-leaf
-         [[:black black-leaf _ black-leaf]] double-black-leaf
-         [(:or [:black black-leaf x [:red a y b]]
-               [:black [:red a y b] x black-leaf])]
+         [:red :black-leaf _ :black-leaf] :black-leaf
+         [:black :black-leaf _ :black-leaf] :double-black-leaf
+         (:or [:black :black-leaf x [:red a y b]]
+               [:black [:red a y b] x :black-leaf])
          ; =>
          [:black a y b]
          :else
@@ -149,20 +166,13 @@
       (cond (< condition 0) (bubble color (remove-val left val) elem right)
             (< 0 condition) (bubble color left elem (remove-val right val))
             :else
-            (remove-raw tree))
-  (let [ins (fn ins [tree]
-              (match tree
-                     black-leaf [:red black-leaf x black-leaf]
-                     [color a y b] (let [condition (compare x y)]
-                                     (< condition 0) (balance [color (ins a) y b])
-                                     (< 0 condition) (balance [color a y (ins b)]))
-                                     :else tree)
-                     [_ a y b] (ins tree)] [:black a y b])))
+            (remove-raw tree)))))
+
 (defn find-val
   "Finds value x in tree"
   [tree x]
   (match tree
-         [black-leaf] nil
+         [:black-leaf] nil
          [_ a y b] (let [condition (compare x y)]
                      (cond
                       (< condition 0) (recur a x)
