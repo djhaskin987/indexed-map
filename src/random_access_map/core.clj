@@ -19,57 +19,64 @@
   "Gets the color of a tree node."
   [tree]
   (match [tree]
-         [[color _ _ _]] color
+         [[c _ _ _ _ _]] c
          [:black-leaf] :black
          [:double-black-leaf] :double-black))
-
 (defn ltree
-  "Gets the left tree of a tree node."
   [tree]
-  (let [[color left elem right] tree]
-    left))
-
-(defn elem
-  "Gets the element of a tree node."
-  [tree]
-  (let [[color left elem right] tree]
-    elem))
-
+  (let [[_ l _ _ _ _] tree]
+    l))
 (defn rtree
-  "Gets the right tree of a tree node."
   [tree]
-  (let [[color left elem right] tree]
-    right))
+  (let [[_ _ _ _ _ r] tree]
+    r))
+
+
+
+(defn size
+  "Gets the size of a tree node."
+  [tree]
+  (match [tree]
+         [[_ _ _ _ s _]] s
+         [:black-leaf] 0
+         [:double-black-leaf] 0
+         :else
+         (throw (ex-info "Size called on a non-tree."
+                  {:type :ram/size/invalid-input
+                   :bad-data tree}))))
 
 (defn- decblack
-  [color]
-  (match color
+  [c]
+  (match c
          :black :red
          :double-black :black
          :red :negative-black
-         :else color))
+         :else c))
 
 (defn- lighten
   [tree]
   (match tree
-         [color a x b] [(decblack color) a x b]
+         [c a k v s b] [(decblack c) a k v s b]
          :double-black-leaf :black-leaf
          :else tree))
 
 (defn- incblack
-  [color]
-  (match color
+  [c]
+  (match c
          :black :double-black
          :red :black
          :negative-black :red
-         :else color))
+         :else c))
 
 (defn- darken
   [tree]
   (match tree
-         [color a x b] [(incblack color) a x b]
+         [c a k v s b] [(incblack c) a k v s b]
          :black-leaf :double-black-leaf
          :else tree))
+(defn update-size
+  [c l k v r]
+  [c l k v (+ 1 (size l) (size r)) r])
 
 (defn- balance
   "Ensures the given subtree stays balanced by rearranging black nodes
@@ -77,104 +84,121 @@
   [tree]
   (match [tree]
          [(:or ;; Left child red with left red grandchild
-               [(:or :black :double-black) [:red [:red a x b] y c] z d]
+               [(:or :black :double-black) [:red [:red a kx vx _ b] ky vy _ c] kz vz _ d]
                ;; Left child red with right red grandchild
-               [(:or :black :double-black) [:red a x [:red b y c]] z d]
+               [(:or :black :double-black) [:red a kx vx _ [:red b ky vy _ c]] kz vz _ d]
                ;; Right child red with left red grandchild
-               [(:or :black :double-black) a x [:red [:red b y c] z d]]
+               [(:or :black :double-black) a kx vx _ [:red [:red b ky vy _ c] kz vz _ d]]
                ;; Right child red with right red grandchild
-               [(:or :black :double-black) a x [:red b y [:red c z d]]])]
+               [(:or :black :double-black) a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])]
          ; =>
-         [(decblack (color tree)) [:black a x b] y [:black c z d]]
+         (update-size (decblack (color tree))
+                      (update-size :black a kx vx b)
+                      ky vy
+                      (update-size :black c kz vz d))
          [[:double-black [:negative-black
-                          [:black a w b]
-                          x
-                          [:black c y d]]
-           z
+                          [:black a kw vw sw b]
+                          kx vx _
+                          [:black c ky vy _ d]]
+           kz vz _
            e]]
-         [:black
-          [:black (balance [:red a w b]) x c]
-          y
-          [:black d z e]]
+           (update-size :black (update-size :black
+                                            (balance [:red a kw vw sw b])
+                                            kx vx c)
+            ky vy
+            (update-size :black d kz vz e))
          ; now the symmetric case ...
-         [[:double-black e z
+         [[:double-black e kz vz _
            [:negative-black
-            [:black d y c]
-            x
-            [:black b w a]]]]
-         [:black [:black e z d]
-          y
-          [:black c x (balance [:red b w a])]]
-         :else
-         tree))
+            [:black d ky vy _ c]
+            kx vx _
+            [:black b kw vw sw a]]]]
+               ; =>
+            (update-size :black
+                         (update-size :black e kz vz d)
+                         ky vy
+                         (update-size :black c kx vx (balance [:red b kw vw sw a])))
+            :else
+            tree))
 
 (defn insert-val
   "Inserts x in tree.
   Returns a node with x and no children if tree is empty.
   Returned tree is balanced. See also `balance`"
-  [tree x]
+  [tree kx vx df]
   (let [ins (fn ins [tree]
               (match tree
-                     :black-leaf [:red :black-leaf x :black-leaf]
-                     [color a y b] (let [condition (compare x y)]
-                                     (< condition 0) (balance [color (ins a) y b])
-                                     (< 0 condition) (balance [color a y (ins b)]))
-                                     :else tree))
-        [_ a y b] (ins tree)] [:black a y b]))
+                     :black-leaf [:red :black-leaf kx vx 1 :black-leaf]
+                     [c a ky vy sy b]
+                     (let [condition (compare kx ky)]
+                       (cond
+                        (< condition 0)
+                          (balance (update-size c (ins a) ky vy b))
+                        (< 0 condition)
+                          (balance (update-size c a ky vy (ins b)))
+                        :else
+                        (df tree)))))
+        [_ a ky vy sy b] (ins tree)] [:black a ky vy sy b]))
 
 (defn- bubble
   "Suds and bath water!"
-  [c l e r]
+  [c l k v s r]
   (if
       (or (= (color l) :double-black)
           (= (color r) :double-black))
-    (balance [(incblack c) (lighten l) e (lighten r)])
-    [c l e r]))
+    (balance [(incblack c) (lighten l) k v s (lighten r)])
+    [c l k v s r]))
 
 (declare remove-raw)
+
 (defn remove-max
   "Remove the maximum element of a tree."
   [tree]
-  (let [[c a x b] tree]
+  (let [[c a kx vx sx b] tree]
     (if (ras-empty? b)
-      [x (remove-raw tree)]
-      (let [[el' b'] (remove-max b)]
-        [el' (bubble c a x b')]))))
+      [kx vx (remove-raw tree)]
+      (let [[kr vr b'] (remove-max b)]
+        [kr vr (bubble c a kx vx (+ 1 (size a) (size b')) b')]))))
 
 (defn- remove-raw
   "Compute a new tree with value removed, except unbalanced at first."
   [tree]
   (match tree
-         [:red :black-leaf _ :black-leaf] :black-leaf
-         [:black :black-leaf _ :black-leaf] :double-black-leaf
-         (:or [:black :black-leaf x [:red a y b]]
-               [:black [:red a y b] x :black-leaf])
+         [:red :black-leaf _ _ _ :black-leaf] :black-leaf
+         [:black :black-leaf _ _ _ :black-leaf] :double-black-leaf
+         (:or [:black :black-leaf _ _ _ [:red a ky vy sy b]]
+               [:black [:red a ky vy sy b] _ _ _ :black-leaf])
          ; =>
-         [:black a y b]
+         [:black a ky vy sy b]
          :else
-         (let [[c l x r] tree
-               [el l'] (remove-max l)]
-           [c l' el r])))
+         (let [[c l kx vx sx r] tree
+               [kr vr l'] (remove-max l)]
+           (update-size c l' kr vr r))))
 
+; tree key -> tree
 (defn remove-val
   "Compute a new tree with value removed."
-  [tree val]
+  [tree key df]
   (if (ras-empty? tree)
-    tree
-    (let [[color left elem right] tree
-          condition (compare val elem)]
-      (cond (< condition 0) (bubble color (remove-val left val) elem right)
-            (< 0 condition) (bubble color left elem (remove-val right val))
+    (df tree)
+    (let [[c l k v s r] tree
+          condition (compare key k)]
+      (cond (< condition 0)
+            (let [new-tree (remove-val l key df)]
+              (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+            (< 0 condition)
+            (let [new-tree (remove-val r key df)]
+              (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
             :else
             (remove-raw tree)))))
 
 (defn find-val
   "Finds value x in tree"
-  [tree x]
-  (match tree
-         [:black-leaf] nil
-         [_ a y b] (let [condition (compare x y)]
-                     (cond
-                      (< condition 0) (recur a x)
-                      (< 0 condition) (recur b x)
-                      :else x))))
+  [tree x df]
+  (match [tree]
+         [:black-leaf] (df tree)
+         [[_ a kx vx sx b]] (let [condition (compare x kx)]
+                              (cond
+                               (< condition 0) (recur a x df)
+                               (< 0 condition) (recur b x df)
+                               :else x))))
