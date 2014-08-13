@@ -84,7 +84,7 @@
   (reduce
    r
    (reduce i (empty-ras) (range 10))
-   [2 4 6 8 10]))
+   [0 2 4 6 8]))
 
 (deftest random-access-map-remove-balanced
   "Testing the remove part of this"
@@ -167,6 +167,21 @@
                                     (ex-info
                                      "Not found."
                                      {:type :ram-test/find-val}))))))))
+(deftest get-by-rank-test
+  "Find out if get-by-rank works."
+  (testing "Checking rank on odd-numbered set..."
+    (is (= (get (get-by-index even-removed 0) 1) 1))
+    (is (= (get (get-by-index even-removed 1) 3) 3))
+    (is (= (get (get-by-index even-removed 2) 5) 5))
+    (is (= (get (get-by-index even-removed 3) 7) 7))
+    (is (= (get (get-by-index even-removed 4) 9) 9)))
+  (testing "Checking exception"
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Index went out of bounds."
+                          (get-by-index even-removed 5)))
+    (is (thrown-with-msg? clojure.lang.ExceptionInfo
+                          #"Index went out of bounds."
+                          (get-by-index even-removed -1)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; inserted-in-reverse-order ;;

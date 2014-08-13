@@ -202,3 +202,21 @@
                                (< condition 0) (recur a x df)
                                (< 0 condition) (recur b x df)
                                :else x))))
+
+(defn get-by-index
+  "Retrieves a pair based on rank."
+  [tree index]
+  (if (ras-empty? tree)
+    (throw (ex-info "Index went out of bounds."
+                    {:type :ram/get-by-index/out-of-bounds
+                     :tree tree
+                     :index index}))
+    (let [[_ l k v _ r] tree
+          left-size (size l)
+          condition (compare index left-size)]
+      (cond (< condition 0)
+            (get-by-index l index)
+            (> condition 0)
+            (get-by-index r (- index left-size 1))
+            :else
+            {k v}))))
