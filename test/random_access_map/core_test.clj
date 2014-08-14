@@ -6,12 +6,12 @@
 (defn- violates-red-invariant?
   "Determines whether there are any red-red parent-child pairs in the tree."
   [tree]
-  (if (ras-empty? tree)
+  (if (ram-empty? tree)
     false
     (if (and (= (color tree) :red)
-             (or (and (not (ras-empty? (ltree tree)))
+             (or (and (not (ram-empty? (ltree tree)))
                       (= :red (color (ltree tree))))
-                 (and (not (ras-empty? (rtree tree)))
+                 (and (not (ram-empty? (rtree tree)))
                       (= :red (color (rtree tree))))))
       true
       (or (violates-red-invariant? (ltree tree))
@@ -20,7 +20,7 @@
 (defn- height
   "Computes the height of a tree."
   [tree]
-  (if (ras-empty? tree)
+  (if (ram-empty? tree)
     0
     (max (inc (height (ltree)))
          (inc (height (rtree))))))
@@ -28,7 +28,7 @@
 (defn- black-height
   "Computes the black height of a tree."
   [tree]
-  (if (ras-empty? tree)
+  (if (ram-empty? tree)
     1
     (let [node-count
           (if (= :black (color tree))
@@ -41,7 +41,7 @@
 (defn- violates-black-invariant?
   "Determines whether tree has unequal black heights for its branches."
   [tree]
-  (if (ras-empty? tree)
+  (if (ram-empty? tree)
     false
     (if (= (black-height (ltree tree)) (black-height (rtree tree)))
       false
@@ -60,19 +60,19 @@
   (remove-val a b (fn [t] t)))
 
 (def inserted-in-order
-  (reduce i (empty-ras) (range 10)))
+  (reduce i (empty-ram) (range 10)))
 
 (def inserted-in-reverse-order
-  (reduce i (empty-ras) (range 9 -1 -1)))
+  (reduce i (empty-ram) (range 9 -1 -1)))
 
 (def inserted-in-wierd-order
-  (reduce i (empty-ras) [5 4 6 3 7 2 8 1 9 0 10]))
+  (reduce i (empty-ram) [5 4 6 3 7 2 8 1 9 0 10]))
 
 (def large-set
-  (reduce i (empty-ras) (range 100)))
+  (reduce i (empty-ram) (range 100)))
 
 (def large-reverse-set
-  (reduce i (empty-ras) (range 99 -1 -1)))
+  (reduce i (empty-ram) (range 99 -1 -1)))
 
 (def first-removed-tree
   (reduce r large-set (range 2 50 2)))
@@ -83,7 +83,7 @@
 (def even-removed
   (reduce
    r
-   (reduce i (empty-ras) (range 10))
+   (reduce i (empty-ram) (range 10))
    [0 2 4 6 8]))
 
 (deftest random-access-map-remove-balanced
@@ -95,7 +95,7 @@
     (testing "Removing from a list of 10..."
       (is (balanced? even-removed)))
     (testing "Removing from the empty list..."
-      (is (= (r (empty-ras) 1) (empty-ras))))
+      (is (= (r (empty-ram) 1) (empty-ram))))
     (testing "Removing element that doesn't exist..."
       (is (= first-removed-tree (r first-removed-tree 101)))))
 
@@ -108,9 +108,9 @@
   (testing "Inserting a list in a wierd, but orderly, order..."
     (is (balanced? inserted-in-wierd-order)))
   (testing "Checking an empty set for balance..."
-    (is (balanced? (empty-ras))))
+    (is (balanced? (empty-ram))))
   (testing "Checking for balance of a one-item set..."
-    (is (balanced? (i (empty-ras) 1))))
+    (is (balanced? (i (empty-ram) 1))))
   (testing "Some good stuff: Inserting a list in ascending order from 1 to 100..."
     (is (balanced? large-set)))
   (testing "Some good stuff: Inserting a list in descending order from 100 to 1..."
@@ -130,7 +130,7 @@
 (deftest count-enforced
   "Check to see that all sizes are everywhere correct in the tree."
   (testing "Checking empty set..."
-    (is (= (actual-count (empty-ras)) (size (empty-ras)) 0)))
+    (is (= (actual-count (empty-ram)) (size (empty-ram)) 0)))
   (testing "Checking inserted-in-order set..."
     (is (= (actual-count inserted-in-order) (size inserted-in-order))))
   (testing "Checking inserted-in-reverse-order set..."
@@ -148,25 +148,15 @@
   (testing "Checking even-removed set..."
     (is (= (actual-count even-removed) (size even-removed)))))
 
-(deftest test-find-val
-  "Test find-val"
+(deftest test-ram-find
+  "Test ram-find"
   (testing "Find a value in the set..."
-    (is (= (find-val inserted-in-order 1 (fn [t] t)) 1)))
+    (is (= (ram-find inserted-in-order 1) [1 1])))
   (testing "Don't find a value in the set..."
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (find-val inserted-in-order 11
-                           (fn [t] (throw (ex-info
-                                           "Not found."
-                                           {:type :ram-test/find-val})))))))
-  (testing "Don't find a value -- nil version..."
-    (is (= nil (find-val inserted-in-order 11 (fn [t] nil)))))
+    (is (nil? (ram-find inserted-in-order 11))))
   (testing "Don't find anything in the empty set..."
-    (is (thrown? clojure.lang.ExceptionInfo
-                 (find-val (empty-ras) nil
-                           (fn [t] (throw
-                                    (ex-info
-                                     "Not found."
-                                     {:type :ram-test/find-val}))))))))
+    (is (nil? (ram-find (empty-ram) nil)))))
+
 (deftest get-by-rank-test
   "Find out if get-by-rank works."
   (testing "Checking rank on odd-numbered set..."
