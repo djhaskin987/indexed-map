@@ -54,10 +54,10 @@
            (violates-black-invariant? tree))))
 
 (defn i [a b]
-  (insert-val a b b (fn [t] t)))
+  (insert-val a b b (fn [t] t) compare))
 
 (defn r [a b]
-  (remove-val a b (fn [t] t)))
+  (remove-val a b (fn [t] t) compare))
 
 (def inserted-in-order
   (reduce i (empty-ram) (range 10)))
@@ -151,11 +151,11 @@
 (deftest test-ram-find
   "Test ram-find"
   (testing "Find a value in the set..."
-    (is (= (ram-find inserted-in-order 1) [1 1])))
+    (is (= (ram-find inserted-in-order 1 compare) [1 1])))
   (testing "Don't find a value in the set..."
-    (is (nil? (ram-find inserted-in-order 11))))
+    (is (nil? (ram-find inserted-in-order 11 compare))))
   (testing "Don't find anything in the empty set..."
-    (is (nil? (ram-find (empty-ram) nil)))))
+    (is (nil? (ram-find (empty-ram) nil compare)))))
 
 (deftest get-by-rank-test
   "Find out if get-by-rank works."

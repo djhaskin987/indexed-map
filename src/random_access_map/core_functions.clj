@@ -123,19 +123,14 @@
   "Inserts x in tree.
   Returns a node with x and no children if tree is empty.
   Returned tree is balanced. See also `balance`"
-  [tree kx vx df]
+  [tree kx vx df cmp]
   (let [ins (fn ins [tree]
               (match tree
                      :black-leaf [:red :black-leaf kx vx 1 :black-leaf]
-                     [c a ky vy sy b]
-                     (let [condition (compare kx ky)]
-                       (cond
-                        (< condition 0)
-                          (balance (update-size c (ins a) ky vy b))
-                        (< 0 condition)
-                          (balance (update-size c a ky vy (ins b)))
-                        :else
-                        (df tree)))))
+                     [c a ky vy sy b] (case (cmp kx ky)
+                                        -1 (balance (update-size c (ins a) ky vy b))
+                                         0 (df tree)
+                                         1 (balance (update-size c a ky vy (ins b))))))
         [_ a ky vy sy b] (ins tree)] [:black a ky vy sy b]))
 
 (defn- bubble
@@ -176,30 +171,26 @@
 ; tree key -> tree
 (defn remove-val
   "Compute a new tree with value removed."
-  [tree key df]
+  [tree key df cmp]
   (if (ram-empty? tree)
     (df tree)
-    (let [[c l k v s r] tree
-          condition (compare key k)]
-      (cond (< condition 0)
-            (let [new-tree (remove-val l key df)]
+    (let [[c l k v s r] tree]
+      (case (cmp key k)
+        -1 (let [new-tree (remove-val l key df cmp)]
               (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
-            (< 0 condition)
-            (let [new-tree (remove-val r key df)]
-              (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
-            :else
-            (remove-raw tree)))))
+         0 (remove-raw tree)
+         1 (let [new-tree (remove-val r key df cmp)]
+              (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))))))
 
 (defn ram-find
   "Finds value x in tree"
-  [tree x]
+  [tree x cmp]
   (match [tree]
          [:black-leaf] nil
-         [[_ a kx vx sx b]] (let [condition (compare x kx)]
-                              (cond
-                               (< condition 0) (recur a x)
-                               (< 0 condition) (recur b x)
-                               :else [kx vx]))))
+         [[_ a kx vx sx b]] (case (cmp x kx)
+                              -1 (recur a x cmp)
+                               0 [kx vx]
+                               1 (recur b x cmp))))
 
 (defn get-by-index
   "Retrieves a pair based on rank."

@@ -1,26 +1,34 @@
 (in-ns 'random-access-map.core)
+
+(defn RandomAccessMap []
+  (RandomAccessMap. compare (empty-ras)))
+
+(defn RandomAccessMap [cmp]
+  (RandomAccessMap. cmp (empty-ras)))
+
 (deftype RandomAccessMap [cmp tree]
   clojure.lang.IPersistentMap
   ; make sure this element doesn't exist.
   (without [this key]
-    (if (nil? (ram-find tree key))
+    (if (nil? (ram-find tree key cmp))
       this
       (remove-val tree key (fn [t] (throw (ex-info "Tried to remove a value that didn't exist."
                                                    {:type :RandomAccessMap/without
-                                                    :key key}))))))
+                                                    :key key})))
+                  cmp)))
   ; insert with replacement.
   (assoc [this key val]
     (insert-val tree key val (fn [t]
                                (let [[l k v s r] t]
-                                 [l key val s r]))))
+                                 [l key val s r])) cmp))
   ; says it.
   ;(iterator [this])
   ; says it.
   (containsKey [this key]
-    (not (nil? (ram-find tree key))))
+    (not (nil? (ram-find tree key cmp))))
   ; vector of [k v], returns nil if it doesn't find it
   (entryAt [this key]
-    (ram-find tree key))
+    (ram-find tree key cmp))
   ; get size.
   (count [this]
     (size tree))
@@ -41,7 +49,7 @@
   ; (seq [this])
   ; get value
   (valAt [this key default]
-    (let [result (ram-find tree key)]
+    (let [result (ram-find tree key cmp)]
       (if (nil? result)
         default
         (let [[k v] result]
