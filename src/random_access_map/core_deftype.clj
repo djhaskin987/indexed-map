@@ -1,9 +1,9 @@
 (in-ns 'random-access-map.core)
 
-(defn RandomAccessMap []
+(defn ->RandomAccessMap []
   (RandomAccessMap. compare (empty-ras)))
 
-(defn RandomAccessMap [cmp]
+(defn ->RandomAccessMap [cmp]
   (RandomAccessMap. cmp (empty-ras)))
 
 (deftype RandomAccessMap [cmp tree]
@@ -57,6 +57,15 @@
   (valAt [this key]
     (.valAt this key nil))
   ; with default value
+  clojure.lang.Indexed
+  (nth [this i]
+    (get-by-index tree i (fn [t] (throw (ex-info "Index out of bounds."
+                                          {:type :RandomAccessMap/nth/IndexOutOfBounds
+                                           :index i
+                                           :size (size tree)})))))
+  (nth [this i default]
+    (get-by-index tree i (fn [t] default)))
+  java.lang.Object
   (hashCode [this] (+ (* 31 (.hashCode tree)) 17))
   (equals [this other]
     (and (instance? other RandomAccessMap)

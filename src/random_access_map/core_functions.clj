@@ -194,18 +194,12 @@
 
 (defn get-by-index
   "Retrieves a pair based on rank."
-  [tree index]
+  [tree index df]
   (if (ram-empty? tree)
-    (throw (ex-info "Index went out of bounds."
-                    {:type :ram/get-by-index/out-of-bounds
-                     :tree tree
-                     :index index}))
+    (df tree)
     (let [[_ l k v _ r] tree
-          left-size (size l)
-          condition (compare index left-size)]
-      (cond (< condition 0)
-            (get-by-index l index)
-            (> condition 0)
-            (get-by-index r (- index left-size 1))
-            :else
-            {k v}))))
+          left-size (size l)]
+      (case (compare index left-size)
+            -1 (get-by-index l index df)
+             0 [k v]
+             1 (get-by-index r (- index left-size 1) df)))))
