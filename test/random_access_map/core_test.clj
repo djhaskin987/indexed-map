@@ -41,11 +41,12 @@
 (defn- violates-black-invariant?
   "Determines whether tree has unequal black heights for its branches."
   [tree]
-  (if (ram-empty? tree)
+  (let [t (.tree tree)]
+  (if (ram-empty? t)
     false
-    (if (= (black-height (ltree tree)) (black-height (rtree tree)))
+    (if (= (black-height (ltree t)) (black-height (rtree t)))
       false
-      true)))
+      true))))
 
 (defn- balanced?
   "Determines if a red-black tree is balanced"
@@ -54,32 +55,25 @@
            (violates-black-invariant? tree))))
 
 (defn i [a b]
-  (insert-val a b b (fn [t] t) compare))
+  (assoc a b (keyword (str b)))
 
 (defn r [a b]
-  (remove-val a b (fn [t] t) compare))
-
-(defn gi [a b]
-  (let [[k v] (get-by-index a b (fn [t] (throw
-                            (ex-info "Index went out of bounds."
-                                     {:type :ram-test/get-by-rank}))))]
-    v))
-
+  (dissoc a (keyword (str b))))
 
 (def inserted-in-order
-  (reduce i (empty-ram) (range 10)))
+  (reduce i (->RandomAccessMap) (range 10)))
 
 (def inserted-in-reverse-order
-  (reduce i (empty-ram) (range 9 -1 -1)))
+  (reduce i (->RandomAccessMap) (range 9 -1 -1)))
 
 (def inserted-in-wierd-order
-  (reduce i (empty-ram) [5 4 6 3 7 2 8 1 9 0 10]))
+  (reduce i (->RandomAccessMap) [5 4 6 3 7 2 8 1 9 0 10]))
 
 (def large-set
-  (reduce i (empty-ram) (range 100)))
+  (reduce i (->RandomAccessMap) (range 100)))
 
 (def large-reverse-set
-  (reduce i (empty-ram) (range 99 -1 -1)))
+  (reduce i large-set (range 99 -1 -1)))
 
 (def first-removed-tree
   (reduce r large-set (range 2 50 2)))
@@ -90,22 +84,18 @@
 (def even-removed
   (reduce
    r
-   (reduce i (empty-ram) (range 10))
+   (reduce i (->RandomAccessMap) (range 10))
    [0 2 4 6 8]))
 
-(deftest random-access-map-remove-balanced
-  "Testing the remove part of this"
-    (testing "Removed even numbers up to 50 from set of 100..."
-      (is (balanced? first-removed-tree)))
-    (testing "Removed some numbers but not others from set of 20..."
-      (is (balanced? second-removed-tree)))
-    (testing "Removing from a list of 10..."
-      (is (balanced? even-removed)))
-    (testing "Removing from the empty list..."
-      (is (= (r (empty-ram) 1) (empty-ram))))
-    (testing "Removing element that doesn't exist..."
-      (is (= first-removed-tree (r first-removed-tree 101)))))
-
+(defn valid-colors?
+  "Checks to see if all colors are either red or black."
+  [tree]
+  (if (keyword? tree)
+    (= tree :black-leaf)
+    (let [[c l k v s r] tree]
+      (and (or (= :black c) (= :red c))
+           (valid-colors? l)
+           (valid-colors? r)))))
 (deftest random-access-map-insert-balanced
   "Testing for proper balancing on insert"
   (testing "Inserting a list in ascending order from 1 to 10..."
@@ -123,7 +113,27 @@
   (testing "Some good stuff: Inserting a list in descending order from 100 to 1..."
     (is (balanced? large-reverse-set))))
 
+(deftest random-access-map-remove-balanced
+  "Testing the remove part of this"
+    (testing "Removed even numbers up to 50 from set of 100..."
+      (is (balanced? first-removed-tree)))
+    (testing "Removed some numbers but not others from set of 20..."
+      (is (balanced? second-removed-tree)))
+    (testing "Removing from a list of 10..."
+      (is (balanced? even-removed)))
+    (testing "Removing from the empty list..."
+      (is (= (r (empty-ram) 1) (empty-ram))))
+    (testing "Removing element that doesn't exist..."
+      (is (= first-removed-tree (r first-removed-tree 101)))))
 
+(deftest random-access-map-remove-colors
+  "Checks colors are correct after removal."
+    (testing "Checking colors on first tree..."
+      (is (valid-colors? first-removed-tree)))
+    (testing "Checking colors on second removed tree..."
+      (is (valid-colors? second-removed-tree)))
+    (testing "Checking colors on even removed tree..."
+      (is (valid-colors? even-removed))))
 
 (defn- actual-count [tree]
   (match [tree]
@@ -167,18 +177,21 @@
 (deftest get-by-rank-test
   "Find out if get-by-rank works."
   (testing "Checking rank on odd-numbered set..."
-    (is (= (gi even-removed 0) 1))
-    (is (= (gi even-removed 1) 3))
-    (is (= (gi even-removed 2) 5))
-    (is (= (gi even-removed 3) 7))
-    (is (= (gi even-removed 4) 9)))
+    (is (= (nth even-removed 0) 1))
+    (is (= (nth even-removed 1) 3))
+    (is (= (nth even-removed 2) 5))
+    (is (= (nth even-removed 3) 7))
+    (is (= (nth even-removed 4) 9)))
   (testing "Checking exception"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"Index went out of bounds."
-                          (gi even-removed 5)))
+                          (nth even-removed 5)))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
                           #"Index went out of bounds."
-                          (gi even-removed -1)))))
+                          (nth even-removed -1))))
+    (testing "Checking default value"
+      (is (= (nth even-removed 80 nil) nil))
+      (is (= (nth even-removed -1 nil) nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; inserted-in-reverse-order ;;

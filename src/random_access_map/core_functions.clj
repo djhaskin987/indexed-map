@@ -20,6 +20,7 @@
          [[c _ _ _ _ _]] c
          [:black-leaf] :black
          [:double-black-leaf] :double-black))
+
 (defn ltree
   [tree]
   (let [[_ l _ _ _ _] tree]
@@ -127,10 +128,12 @@
   (let [ins (fn ins [tree]
               (match tree
                      :black-leaf [:red :black-leaf kx vx 1 :black-leaf]
-                     [c a ky vy sy b] (case (cmp kx ky)
-                                        -1 (balance (update-size c (ins a) ky vy b))
-                                         0 (df tree)
-                                         1 (balance (update-size c a ky vy (ins b))))))
+                     [c a ky vy sy b] (let [condition (cmp kx ky)]
+                                        (cond (< condition 0) (balance (update-size c (ins a) ky vy b))
+                                              (< 0 condition) (balance (update-size c a ky vy (ins b)))
+                                              :else (df tree)))
+                     :else
+                     (throw (ex-info "Wrong kind of tree." {:type :ram/insert-val :tree tree}))))
         [_ a ky vy sy b] (ins tree)] [:black a ky vy sy b]))
 
 (defn- bubble
@@ -166,31 +169,37 @@
          :else
          (let [[c l kx vx sx r] tree
                [kr vr l'] (remove-max l)]
-           (update-size c l' kr vr r))))
+           (bubble c l' kr vr (+ 1 (size l') (size r)) r))))
 
 ; tree key -> tree
 (defn remove-val
   "Compute a new tree with value removed."
   [tree key df cmp]
-  (if (ram-empty? tree)
-    (df tree)
-    (let [[c l k v s r] tree]
-      (case (cmp key k)
-        -1 (let [new-tree (remove-val l key df cmp)]
-              (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
-         0 (remove-raw tree)
-         1 (let [new-tree (remove-val r key df cmp)]
-              (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))))))
+  (let [rm (fn rm [tree]
+             (if (ram-empty? tree)
+               (df tree)
+               (let [[c l k v s r] tree
+                     condition (cmp key k)]
+                 (cond
+                  (< condition 0) (let [new-tree (rm l)]
+                                    (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+                  (< 0 condition) (let [new-tree (rm r)]
+                                    (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
+                  :else (remove-raw tree)))))]
+    (match [(rm tree)]
+           [:double-black-leaf] :black-leaf
+           [:black-leaf] :black-leaf
+           [[_ l k v s r]] [:black l k v s r])))
 
 (defn ram-find
   "Finds value x in tree"
   [tree x cmp]
   (match [tree]
          [:black-leaf] nil
-         [[_ a kx vx sx b]] (case (cmp x kx)
-                              -1 (recur a x cmp)
-                               0 [kx vx]
-                               1 (recur b x cmp))))
+         [[_ a kx vx sx b]] (let [condition (cmp x kx)]
+                              (cond (< condition 0) (recur a x cmp)
+                                    (< 0 condition) (recur b x cmp)
+                                    :else [kx vx]))))
 
 (defn get-by-index
   "Retrieves a pair based on rank."
@@ -198,8 +207,20 @@
   (if (ram-empty? tree)
     (df tree)
     (let [[_ l k v _ r] tree
-          left-size (size l)]
-      (case (compare index left-size)
-            -1 (get-by-index l index df)
-             0 [k v]
-             1 (get-by-index r (- index left-size 1) df)))))
+          left-size (size l)
+          condition (compare index left-size)]
+      (cond (< condition 0) (recur l index df)
+            (< 0 condition) (recur r (- index left-size 1) df)
+            :else [k v]))))
+
+(defn tree->seq
+  "Convert a tree to a seq of its values, in-order."
+  [tree]
+  (let [seq-builder (fn seq-builder [t s]
+    "Builds a seq out of the tree."
+    (if (ram-empty? t)
+      s
+      (let [[_ l k v _ r] t
+            s' (seq-builder r s)]
+        (seq-builder l (cons [k v] s')))))]
+  (seq-builder tree '())))
