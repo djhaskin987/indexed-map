@@ -1,5 +1,30 @@
 (in-ns 'random-access-map.core)
 
+(deftype RandomAccessMapEntry [k v]
+  clojure.lang.IMapEntry
+  (val [this]
+    v)
+ (key [this]
+   k)
+ (equals [this other]
+   (if (instance? RandomAccessMapEntry other)
+     (and (= (key other) k) (= (val other) v))
+     false))
+ (hashCode [this]
+   (+ 7 (* 31 (+ (* 17 (.hashCode k)) 5) (.hashCode v))))
+ (getValue [this]
+   v)
+ (getKey [this]
+   k)
+ (setValue [this G__3117]
+   (throw java.lang.UnsupportedOperationException "No mutation supported")))
+
+(defn- to-map-entry [pair]
+  (if (nil? pair)
+    nil
+    (let [[k v] pair]
+      (RandomAccessMapEntry. k v))))
+
 (deftype RandomAccessMap [^java.util.Comparator cmp tree]
   clojure.lang.IPersistentMap
   ; make sure this element doesn't exist.
@@ -24,7 +49,7 @@
     (not (nil? (ram-find tree key cmp))))
   ; vector of [k v], returns nil if it doesn't find it
   (entryAt [this key]
-    (ram-find tree key cmp))
+    (to-map-entry (ram-find tree key cmp)))
   ; get size.
   (count [this]
     (size tree))
@@ -58,12 +83,14 @@
   ; with default value
   clojure.lang.Indexed
   (nth [this i]
-    (get-by-index tree i (fn [t] (throw (ex-info "Index out of bounds."
+    (to-map-entry (get-by-index tree i (fn [t] (throw (ex-info "Index out of bounds."
                                           {:type :RandomAccessMap/nth/IndexOutOfBounds
                                            :index i
-                                           :size (size tree)})))))
+                                           :size (size tree)}))))))
   (nth [this i default]
-    (get-by-index tree i (fn [t] default)))
+    (let [result (to-map-entry (get-by-index tree i (fn [t] default)))]
+      (if (nil? result) default
+          result)))
   clojure.lang.IFn
   (invoke [this n] (get this n))
   java.lang.Object

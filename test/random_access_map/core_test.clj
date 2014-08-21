@@ -41,18 +41,18 @@
 (defn- violates-black-invariant?
   "Determines whether tree has unequal black heights for its branches."
   [tree]
-  (let [t (.tree tree)]
-  (if (ram-empty? t)
+  (if (ram-empty? tree)
     false
-    (if (= (black-height (ltree t)) (black-height (rtree t)))
+    (if (= (black-height (ltree tree)) (black-height (rtree tree)))
       false
-      true))))
+      true)))
 
 (defn- balanced?
   "Determines if a red-black tree is balanced"
   [tree]
-  (not (or (violates-red-invariant? tree)
-           (violates-black-invariant? tree))))
+  (let [t (.tree tree)]
+    (not (or (violates-red-invariant? t)
+             (violates-black-invariant? t)))))
 
 (defn i [a b]
   (assoc a b (keyword (str b)))
@@ -122,18 +122,18 @@
     (testing "Removing from a list of 10..."
       (is (balanced? even-removed)))
     (testing "Removing from the empty list..."
-      (is (= (r (empty-ram) 1) (empty-ram))))
+      (is (= (r (->RandomAccessMap) 1) (->RandomAccessMap))))
     (testing "Removing element that doesn't exist..."
       (is (= first-removed-tree (r first-removed-tree 101)))))
 
 (deftest random-access-map-remove-colors
   "Checks colors are correct after removal."
     (testing "Checking colors on first tree..."
-      (is (valid-colors? first-removed-tree)))
+      (is (valid-colors? (.tree first-removed-tree))))
     (testing "Checking colors on second removed tree..."
-      (is (valid-colors? second-removed-tree)))
+      (is (valid-colors? (.tree second-removed-tree))))
     (testing "Checking colors on even removed tree..."
-      (is (valid-colors? even-removed))))
+      (is (valid-colors? (.tree even-removed)))))
 
 (defn- actual-count [tree]
   (match [tree]
@@ -149,30 +149,30 @@
   (testing "Checking empty set..."
     (is (= (actual-count (empty-ram)) (size (empty-ram)) 0)))
   (testing "Checking inserted-in-order set..."
-    (is (= (actual-count inserted-in-order) (size inserted-in-order))))
+    (is (= (actual-count (.tree inserted-in-order)) (count inserted-in-order))))
   (testing "Checking inserted-in-reverse-order set..."
-    (is (= (actual-count inserted-in-reverse-order) (size inserted-in-reverse-order))))
+    (is (= (actual-count (.tree inserted-in-reverse-order)) (count inserted-in-reverse-order))))
   (testing "Checking inserted-in-wierd-order set..."
-    (is (= (actual-count inserted-in-wierd-order) (size inserted-in-wierd-order))))
+    (is (= (actual-count (.tree inserted-in-wierd-order)) (count inserted-in-wierd-order))))
   (testing "Checking large-set set..."
-    (is (= (actual-count large-set) (size large-set))))
+    (is (= (actual-count (.tree large-set)) (count large-set))))
   (testing "Checking large-reverse-set set..."
-    (is (= (actual-count large-reverse-set) (size large-reverse-set))))
+    (is (= (actual-count (.tree large-reverse-set)) (count large-reverse-set))))
   (testing "Checking first-removed-tree set..."
-    (is (= (actual-count first-removed-tree) (size first-removed-tree))))
+    (is (= (actual-count (.tree first-removed-tree)) (count first-removed-tree))))
   (testing "Checking second-removed-tree set..."
-    (is (= (actual-count second-removed-tree) (size second-removed-tree))))
+    (is (= (actual-count (.tree second-removed-tree)) (count second-removed-tree))))
   (testing "Checking even-removed set..."
-    (is (= (actual-count even-removed) (size even-removed)))))
+    (is (= (actual-count (.tree even-removed)) (count even-removed)))))
 
 (deftest test-ram-find
   "Test ram-find"
   (testing "Find a value in the set..."
-    (is (= (ram-find inserted-in-order 1 compare) [1 1])))
+    (is (= (get inserted-in-order :1) 1)))
   (testing "Don't find a value in the set..."
-    (is (nil? (ram-find inserted-in-order 11 compare))))
+    (is (nil? (get inserted-in-order :11))))
   (testing "Don't find anything in the empty set..."
-    (is (nil? (ram-find (empty-ram) nil compare)))))
+    (is (nil? (get (->RandomAccessMap))))))
 
 (deftest get-by-rank-test
   "Find out if get-by-rank works."
