@@ -1,29 +1,10 @@
 (in-ns 'random-access-map.core)
 
-(deftype RandomAccessMapEntry [k v]
-  clojure.lang.IMapEntry
-  (val [this]
-    v)
- (key [this]
-   k)
- (equals [this other]
-   (if (instance? RandomAccessMapEntry other)
-     (and (= (key other) k) (= (val other) v))
-     false))
- (hashCode [this]
-   (+ 7 (* 31 (+ (* 17 (.hashCode k)) 5) (.hashCode v))))
- (getValue [this]
-   v)
- (getKey [this]
-   k)
- (setValue [this G__3117]
-   (throw java.lang.UnsupportedOperationException "No mutation supported")))
-
 (defn- to-map-entry [pair]
   (if (nil? pair)
     nil
     (let [[k v] pair]
-      (RandomAccessMapEntry. k v))))
+      (clojure.lang.MapEntry. k v))))
 
 (deftype RandomAccessMap [^java.util.Comparator cmp tree]
   clojure.lang.IPersistentMap
@@ -38,8 +19,8 @@
   ; insert with replacement.
   (assoc [this key val]
     (RandomAccessMap. cmp (insert-val tree key val (fn [t]
-                                                     (let [[l k v s r] t]
-                                                       [l key val s r])) cmp)))
+                                                     (let [[c l k v s r] t]
+                                                       [c l key val s r])) cmp)))
   (assocEx [this key val]
     (throw (java.lang.UnsupportedOperationException. "Not supported")))
   ; says it.
@@ -47,7 +28,7 @@
   ; says it.
   (containsKey [this key]
     (not (nil? (ram-find tree key cmp))))
-  ; vector of [k v], returns nil if it doesn't find it
+  ; MapEntry of [k v], returns nil if it doesn't find it
   (entryAt [this key]
     (to-map-entry (ram-find tree key cmp)))
   ; get size.
@@ -55,7 +36,7 @@
     (size tree))
   ; get empty collection (nil collection).
   (empty [this]
-    (RandomAccessMap. cmp :black-leaf))
+    (RandomAccessMap. cmp (empty-ram)))
   ; takes a [k v] and inserts it.
   (cons [this kvpair]
     (if (nil? kvpair)
@@ -88,13 +69,14 @@
                                            :index i
                                            :size (size tree)}))))))
   (nth [this i default]
-    (let [result (to-map-entry (get-by-index tree i (fn [t] default)))]
-      (if (nil? result) default
-          result)))
+    (let [result (get-by-index tree i (fn [t] default))]
+      (if (= result default)
+        default
+        (to-map-entry result))))
   clojure.lang.IFn
   (invoke [this n] (get this n))
   java.lang.Object
-  (hashCode [this] (+ (* 31 (.hashCode tree)) 17))
+  (hashCode [this] (+ (* 29 (.hashCode tree)) 23))
   (equals [this other]
     (and (instance? other RandomAccessMap)
          (.equals tree (.tree other))))

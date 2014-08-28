@@ -35,10 +35,10 @@
 (defn size
   "Gets the size of a tree node."
   [tree]
-  (match [tree]
-         [[_ _ _ _ s _]] s
-         [:black-leaf] 0
-         [:double-black-leaf] 0
+  (match tree
+         [_ _ _ _ s _] s
+         :black-leaf 0
+         :double-black-leaf 0
          :else
          (throw (ex-info "Size called on a non-tree."
                   {:type :ram/size/invalid-input
@@ -139,11 +139,11 @@
 (defn- bubble
   "Suds and bath water!"
   [c l k v s r]
-  (if
-      (or (= (color l) :double-black)
-          (= (color r) :double-black))
-    (balance [(incblack c) (lighten l) k v s (lighten r)])
-    [c l k v s r]))
+  (balance
+   (if (or (= (color l) :double-black)
+           (= (color r) :double-black))
+     [(incblack c) (lighten l) k v s (lighten r)]
+     [c l k v s r])))
 
 (declare remove-raw)
 

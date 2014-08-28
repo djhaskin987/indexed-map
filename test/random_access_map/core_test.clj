@@ -3,7 +3,7 @@
             [clojure.core.match :refer [match]]
             [random-access-map.core :refer :all]))
 
-(defn- violates-red-invariant?
+(defn violates-red-invariant?
   "Determines whether there are any red-red parent-child pairs in the tree."
   [tree]
   (if (ram-empty? tree)
@@ -17,7 +17,21 @@
       (or (violates-red-invariant? (ltree tree))
           (violates-red-invariant? (rtree tree))))))
 
-(defn- height
+(defn find-red-violation
+  "Determines whether there are any red-red parent-child pairs in the tree."
+  [tree]
+  (let [list-builder (fn list-builder [t l]
+                       (if (ram-empty? t)
+                         l
+                         (if (and (= (color t) :red)
+                                  (or (and (not (ram-empty? (ltree t)))
+                                           (= :red (color (ltree t))))
+                                      (and (not (ram-empty? (rtree t)))
+                                           (= :red (color (rtree t))))))
+                           (list-builder (rtree t) (list-builder (ltree t) (cons t l))))))]
+    (list-builder tree '())))
+
+(defn height
   "Computes the height of a tree."
   [tree]
   (if (ram-empty? tree)
@@ -25,7 +39,7 @@
     (max (inc (height (ltree)))
          (inc (height (rtree))))))
 
-(defn- black-height
+(defn black-height
   "Computes the black height of a tree."
   [tree]
   (if (ram-empty? tree)
@@ -38,7 +52,7 @@
          (max (black-height (ltree tree))
               (black-height (rtree tree)))))))
 
-(defn- violates-black-invariant?
+(defn violates-black-invariant?
   "Determines whether tree has unequal black heights for its branches."
   [tree]
   (if (ram-empty? tree)
@@ -47,7 +61,7 @@
       false
       true)))
 
-(defn- balanced?
+(defn balanced?
   "Determines if a red-black tree is balanced"
   [tree]
   (let [t (.tree tree)]
@@ -55,7 +69,7 @@
              (violates-black-invariant? t)))))
 
 (defn i [a b]
-  (assoc a b (keyword (str b)))
+  (assoc a (keyword (str b)) b))
 
 (defn r [a b]
   (dissoc a (keyword (str b))))
@@ -105,9 +119,9 @@
   (testing "Inserting a list in a wierd, but orderly, order..."
     (is (balanced? inserted-in-wierd-order)))
   (testing "Checking an empty set for balance..."
-    (is (balanced? (empty-ram))))
+    (is (balanced? (->RandomAccessMap))))
   (testing "Checking for balance of a one-item set..."
-    (is (balanced? (i (empty-ram) 1))))
+    (is (balanced? (i (->RandomAccessMap) 1))))
   (testing "Some good stuff: Inserting a list in ascending order from 1 to 100..."
     (is (balanced? large-set)))
   (testing "Some good stuff: Inserting a list in descending order from 100 to 1..."
@@ -135,7 +149,7 @@
     (testing "Checking colors on even removed tree..."
       (is (valid-colors? (.tree even-removed)))))
 
-(defn- actual-count [tree]
+(defn actual-count [tree]
   (match [tree]
          [:black-leaf] 0
          [:double-black-leaf] 0
@@ -172,26 +186,27 @@
   (testing "Don't find a value in the set..."
     (is (nil? (get inserted-in-order :11))))
   (testing "Don't find anything in the empty set..."
-    (is (nil? (get (->RandomAccessMap))))))
+    (is (nil? (get (->RandomAccessMap) :1)))))
 
 (deftest get-by-rank-test
   "Find out if get-by-rank works."
   (testing "Checking rank on odd-numbered set..."
-    (is (= (nth even-removed 0) 1))
-    (is (= (nth even-removed 1) 3))
-    (is (= (nth even-removed 2) 5))
-    (is (= (nth even-removed 3) 7))
-    (is (= (nth even-removed 4) 9)))
+    (is (= (nth (nth even-removed 0) 1) 1))
+    (is (= (nth (nth even-removed 1) 1) 3))
+    (is (= (nth (nth even-removed 2) 1) 5))
+    (is (= (nth (nth even-removed 3) 1) 7))
+    (is (= (nth (nth even-removed 4) 1) 9)))
   (testing "Checking exception"
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Index went out of bounds."
+                          #"Index out of bounds."
                           (nth even-removed 5)))
     (is (thrown-with-msg? clojure.lang.ExceptionInfo
-                          #"Index went out of bounds."
+                          #"Index out of bounds."
                           (nth even-removed -1))))
     (testing "Checking default value"
-      (is (= (nth even-removed 80 nil) nil))
-      (is (= (nth even-removed -1 nil) nil))))
+      (is (= (nth even-removed 87 :armadillo) :armadillo))
+      (is (= (nth even-removed 303 nil) nil))
+      (is (= (nth even-removed -1 "whodj") "whodj"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; inserted-in-reverse-order ;;
