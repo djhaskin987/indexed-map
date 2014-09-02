@@ -178,7 +178,7 @@
   (let [rm (fn rm [tree]
              (if (ram-empty? tree)
                (df tree)
-               (let [[c l k v s r] tree
+               (let [[c l k v _ r] tree
                      condition (cmp key k)]
                  (cond
                   (< condition 0) (let [new-tree (rm l)]
@@ -212,6 +212,26 @@
       (cond (< condition 0) (recur l index df)
             (< 0 condition) (recur r (- index left-size 1) df)
             :else [k v]))))
+
+(defn remove-by-index
+  "Removes a pair based on rank."
+  [tree index df]
+  (let [rm (fn rm [t i]
+             (if (ram-empty? t)
+               (df t)
+               (let [[c l k v _ r] t
+                     left-size (size l)
+                     condition (compare i left-size)]
+                 (cond
+                  (< condition 0) (let [new-tree (rm l i)]
+                                    (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+                  (< 0 condition) (let [new-tree (rm r (- index left-size 1))]
+                                    (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
+                  :else (remove-raw tree)))))]
+    (match [(rm tree index)]
+           [:double-black-leaf] :black-leaf
+           [:black-leaf] :black-leaf
+           [[_ l k v s r]] [:black l k v s r])))
 
 (defn tree->seq
   "Convert a tree to a seq of its values, in-order."

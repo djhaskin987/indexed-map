@@ -6,16 +6,26 @@
     (let [[k v] pair]
       (clojure.lang.MapEntry. k v))))
 
+(defprotocol RandomAccessRemoval
+  (disjoin-nth [this index]
+    "Disjoin the nth element from this set (should such an element exist)."))
+
 (deftype RandomAccessMap [^java.util.Comparator cmp tree]
   clojure.lang.IPersistentMap
   ; make sure this element doesn't exist.
   (without [this key]
     (if (nil? (ram-find tree key cmp))
       this
-      (RandomAccessMap. cmp (remove-val tree key (fn [t] (throw (ex-info "Tried to remove a value that didn't exist."
-                                                   {:type :RandomAccessMap/without
-                                                    :key key})))
-                  cmp))))
+      (RandomAccessMap.
+       cmp
+       (remove-val tree
+                   key
+                   (fn [t]
+                     (throw
+                      (ex-info "Tried to remove a value that didn't exist."
+                               {:type :RandomAccessMap/without
+                                :key key})))
+                   cmp))))
   ; insert with replacement.
   (assoc [this key val]
     (RandomAccessMap. cmp (insert-val tree key val (fn [t]
@@ -64,15 +74,35 @@
   ; with default value
   clojure.lang.Indexed
   (nth [this i]
-    (to-map-entry (get-by-index tree i (fn [t] (throw (ex-info "Index out of bounds."
-                                          {:type :RandomAccessMap/nth/IndexOutOfBounds
-                                           :index i
-                                           :size (size tree)}))))))
+    (to-map-entry
+     (get-by-index tree
+                   i
+                   (fn [t]
+                     (throw
+                      (ex-info "Index out of bounds."
+                               {:type :RandomAccessMap/nth/IndexOutOfBounds
+                                :index i
+                                :size (size tree)}))))))
   (nth [this i default]
     (let [result (get-by-index tree i (fn [t] default))]
       (if (= result default)
         default
         (to-map-entry result))))
+  RandomAccessRemoval
+  (disjoin-nth [this index]
+    (if (or (< index 0) (>= index (count this)))
+      this
+      (RandomAccessMap.
+       cmp
+       (remove-by-index
+        tree
+        index
+        (fn [t]
+          (throw
+           (ex-info "Tried to remove a value that didn't exist."
+                    {:type :RandomAccessMap/dijoin-nth
+                     :index index
+                     :tree tree})))))))
   clojure.lang.IFn
   (invoke [this n] (get this n))
   java.lang.Object

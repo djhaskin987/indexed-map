@@ -61,18 +61,41 @@
       false
       true)))
 
+(defn naive-balanced?
+  [tree]
+  (let [t (.tree tree)]
+    (if (ram-empty? t)
+      true
+      ;; check heights recursively
+      (let [l (ltree t)
+            r (rtree t)
+            lh (height l)
+            rh (height r)]
+        (and
+         (if (< lh rh)
+           (<= rh (+ (* 2 lh) 1))
+           (if (< rh lh)
+             (<= lh (+ (* 2 rh) 1))
+             true))
+         (naive-balanced? l)
+         (naive-balanced? r))))))
+
 (defn balanced?
   "Determines if a red-black tree is balanced"
   [tree]
   (let [t (.tree tree)]
-    (not (or (violates-red-invariant? t)
-             (violates-black-invariant? t)))))
+    (and (not (or (violates-red-invariant? t)
+                  (violates-black-invariant? t)))
+         (naive-balanced? tree))))
 
 (defn i [a b]
   (assoc a (keyword (str b)) b))
 
 (defn r [a b]
   (dissoc a (keyword (str b))))
+
+(defn rn [a b]
+  (disjoin-nth a b))
 
 (def inserted-in-order
   (reduce i (->RandomAccessMap) (range 10)))
@@ -81,7 +104,7 @@
   (reduce i (->RandomAccessMap) (range 9 -1 -1)))
 
 (def inserted-in-wierd-order
-  (reduce i (->RandomAccessMap) [5 4 6 3 7 2 8 1 9 0 10]))
+  (reduce i (->RandomAccessMap) [5 4 6 3 7 2 8 1 9 0]))
 
 (def large-set
   (reduce i (->RandomAccessMap) (range 100)))
@@ -101,18 +124,63 @@
    (reduce i (->RandomAccessMap) (range 10))
    [0 2 4 6 8]))
 
+(def first-index-removed-tree
+  (reduce rn large-set (range 0 40 3)))
+
+(def second-index-removed-tree
+  (reduce rn inserted-in-order [0 2 4 5]))
+
+(def start-index-removed-tree
+  (reduce rn inserted-in-order (repeat 0 5)))
+
+(def end-index-removed-tree
+  (reduce rn inserted-in-order (range 9 4 -1)))
+
+(def all-maps
+  [inserted-in-order
+   inserted-in-reverse-order
+   inserted-in-wierd-order
+   large-reverse-set
+   first-removed-tree
+   second-removed-tree
+   even-removed
+   first-index-removed-tree
+   second-index-removed-tree
+   start-index-removed-tree
+   end-index-removed-tree])
+
 (defn valid-colors?
   "Checks to see if all colors are either red or black."
   [tree]
-  (if (keyword? tree)
-    (= tree :black-leaf)
-    (let [[c l k v s r] tree]
-      (and (or (= :black c) (= :red c))
-           (valid-colors? l)
-           (valid-colors? r)))))
+  (let [t (.tree tree)
+        f (fn f [t]
+            (if (keyword? t)
+              (= t :black-leaf)
+              (let [[c l k v s r] t]
+                (and (or (= :black c) (= :red c))
+                     (f l)
+                     (f r)))))]
+    (f t)))
+
+(defn actual-count [tree]
+  (let [t (.tree tree)]
+    (match [t]
+           [:black-leaf] 0
+           [:double-black-leaf] 0
+           [[c l k v s r]] (+ (actual-count l) (actual-count r) 1)
+           :else
+           (ex-info "Actual count called on a non-tree."
+                    {:type :ram-test/actual-count/invalid-input
+                     :tree tree})))
+
 (deftest random-access-map-insert-balanced
   "Testing for proper balancing on insert"
-  (testing "Inserting a list in ascending order from 1 to 10..."
+  (testing "ALL THE THINGS..."
+    (doseq (fn [m]
+             (is (balanced? m))
+             (is (valid-colors? m)))
+             all-maps)))
+#_((testing "Inserting a list in ascending order from 1 to 10..."
     (is (balanced? inserted-in-order)))
   (testing "Inserting a list in descending order from 10 to 1..."
     (is (balanced? inserted-in-reverse-order)))
@@ -127,7 +195,7 @@
   (testing "Some good stuff: Inserting a list in descending order from 100 to 1..."
     (is (balanced? large-reverse-set))))
 
-(deftest random-access-map-remove-balanced
+#_(deftest random-access-map-remove-balanced
   "Testing the remove part of this"
     (testing "Removed even numbers up to 50 from set of 100..."
       (is (balanced? first-removed-tree)))
@@ -140,7 +208,7 @@
     (testing "Removing element that doesn't exist..."
       (is (= first-removed-tree (r first-removed-tree 101)))))
 
-(deftest random-access-map-remove-colors
+#_(deftest random-access-map-remove-colors
   "Checks colors are correct after removal."
     (testing "Checking colors on first tree..."
       (is (valid-colors? (.tree first-removed-tree))))
@@ -149,16 +217,35 @@
     (testing "Checking colors on even removed tree..."
       (is (valid-colors? (.tree even-removed)))))
 
-(defn actual-count [tree]
-  (match [tree]
-         [:black-leaf] 0
-         [:double-black-leaf] 0
-         [[c l k v s r]] (+ (actual-count l) (actual-count r) 1)
-         :else
-         (ex-info "Actual count called on a non-tree."
-                  {:type :ram-test/actual-count/invalid-input
-                   :tree tree})))
-(deftest count-enforced
+#_(deftest random-access-map-index-remove-balanced
+  "Testing the remove part of this"
+    (testing "Removed every third index from 0 to 40 from a set of 100..."
+      (is (balanced? first-index-removed-tree)))
+    (testing "Removed by some indexes but not by others from a set of 10..."
+      (is (balanced? second-index-removed-tree)))
+    (testing "Removing by index from a list of 10 from the end..."
+      (is (balanced? end-index-removed-tree)))
+    (testing "Removing by index from a list of 10 from the beginning..."
+      (is (balanced? end-index-removed-tree)))
+    (testing "Removing from the empty list..."
+      (is (= (rn (->RandomAccessMap) 0) (->RandomAccessMap))))
+    (testing "Removing element that doesn't exist..."
+      (is (= first-removed-tree (rn first-removed-tree 101)))))
+
+#_(deftest random-access-map-index-remove-colors
+  "Checks colors are correct after removal."
+    (testing "Checking colors on first index-removed tree..."
+      (is (valid-colors? (.tree first-index-removed-tree))))
+    (testing "Checking colors on second index-removed tree..."
+      (is (valid-colors? (.tree second-index-removed-tree))))
+    (testing "Checking colors on start indexed removed tree..."
+      (is (valid-colors? (.tree start-index-removed-tree))))
+    (testing "Checking colors on end indexed removed tree..."
+      (is (valid-colors? (.tree end-index-removed-tree)))))
+
+
+
+#_(deftest count-enforced
   "Check to see that all sizes are everywhere correct in the tree."
   (testing "Checking empty set..."
     (is (= (actual-count (empty-ram)) (size (empty-ram)) 0)))
@@ -177,10 +264,47 @@
   (testing "Checking second-removed-tree set..."
     (is (= (actual-count (.tree second-removed-tree)) (count second-removed-tree))))
   (testing "Checking even-removed set..."
-    (is (= (actual-count (.tree even-removed)) (count even-removed)))))
+    (is (= (actual-count (.tree even-removed)) (count even-removed))))
+  (testing "Checking second-removed-tree set..."
+    (is (= (actual-count (.tree second-removed-tree)) (count second-removed-tree))))
+  (testing "Checking first-indexed-removed-tree set..."
+    (is (= (actual-count (.tree first-indexed-removed-tree)) (count second-removed-tree))))
+  (testing "Checking second-indexed-removed-tree set..."
+    (is (= (actual-count (.tree second-indexed-removed-tree)) (count second-removed-tree))))
+  (testing "Checking start-indexed-removed-tree set..."
+    (is (= (actual-count (.tree start-indexed-removed-tree)) (count second-removed-tree))))
+  (testing "Checking end-indexed-removed-tree set..."
+    (is (= (actual-count (.tree end-indexed-removed-tree)) (count second-removed-tree)))))
 
-(deftest test-ram-find
+;; UNCOMMENT THIS
+#_(deftest test-ram-find
   "Test ram-find"
+  (testing "Testing find for inserted-in-order..."
+    (is (= (find inserted-in-order :1) (clojure.lang.MapEntry. :1 1)))
+    (is (= (find inserted-in-order :4) (clojure.lang.MapEntry. :4 4)))
+    (is (= (find inserted-in-order :7) (clojure.lang.MapEntry. :7 7))))
+  (testing "Testing find for inserted-in-reverse-order..."
+    (is (= (find inserted-in-reverse-order :2) (clojure.lang.MapEntry. :2 2)))
+    (is (= (find inserted-in-reverse-order :3) (clojure.lang.MapEntry. :3 3)))
+    (is (= (find inserted-in-reverse-order :8) (clojure.lang.MapEntry. :8 8))))
+  (testing "Testing find for inserted-in-wierd-order..."
+    (is (= (find inserted-in-wierd-order :5) (clojure.lang.MapEntry. :5 1)))
+    (is (= (find inserted-in-wierd-order :6) (clojure.lang.MapEntry. :6 4)))
+    (is (= (find inserted-in-wierd-order :9) (clojure.lang.MapEntry. :9 7))))
+
+;; inserted-in-reverse-order
+;; inserted-in-wierd-order
+;; large-reverse-set
+;; first-removed-tree
+;; second-removed-tree
+;; even-removed
+;; first-index-removed-tree
+;; second-index-removed-tree
+;; start-index-removed-tree
+;; end-index-removed-tree
+
+
+
   (testing "Find a value in the set..."
     (is (= (get inserted-in-order :1) 1)))
   (testing "Don't find a value in the set..."
@@ -188,7 +312,8 @@
   (testing "Don't find anything in the empty set..."
     (is (nil? (get (->RandomAccessMap) :1)))))
 
-(deftest get-by-rank-test
+;; UNCOMMENT THIS
+#_(deftest get-by-rank-test
   "Find out if get-by-rank works."
   (testing "Checking rank on odd-numbered set..."
     (is (= (nth (nth even-removed 0) 1) 1))
@@ -207,13 +332,3 @@
       (is (= (nth even-removed 87 :armadillo) :armadillo))
       (is (= (nth even-removed 303 nil) nil))
       (is (= (nth even-removed -1 "whodj") "whodj"))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; inserted-in-reverse-order ;;
-;; inserted-in-wierd-order   ;;
-;; large-set                 ;;
-;; large-reverse-set         ;;
-;; first-removed-tree        ;;
-;; second-removed-tree       ;;
-;; even-removed              ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
