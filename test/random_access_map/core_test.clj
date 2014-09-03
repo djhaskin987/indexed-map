@@ -102,16 +102,20 @@
 (defn actual-count [tree]
   (let [t (.tree tree)
         rec (fn rec [t]
-              (let [t (.tree tree)]
-                (match [t]
+              (match [t]
                        [:black-leaf] 0
                        [:double-black-leaf] 0
                        [[c l k v s r]] (+ (rec l) (rec r) 1)
                        :else
                        (ex-info "Actual count called on a non-tree."
                                 {:type :ram-test/actual-count/invalid-input
-                                 :tree tree}))))]
+                                 :tree tree})))]
     (rec t)))
+(defn kvp
+  ([v]
+     (clojure.lang.MapEntry. (k v) v))
+  ([a b]
+     (clojure.lang.MapEntry. (k a) b)))
 
 (defn valid-colors?
   "Checks to see if all colors are either red or black."
@@ -133,30 +137,29 @@
 (defn set->map
   [s]
   (reduce conj {}
-          (map (fn [k v] (clojure.lang.MapEntry. k v))
+          (map (fn [k v] (kvp k v))
                (range (count s))
                (sort (seq s)))))
-
-
+(defn standard-print [m s]
+  (str "\nThe tested map is:\n" m "\n\nThe tested coll is:\n" s))
 
 (defn standard-tests [name m s]
-  (testing (str "Testing the basics of " name "...")
+  (testing (str "Testing the basics of " name "." (standard-print m s))
     (is (balanced? m))
     (is (valid-colors? m))
     (is (= (count m) (actual-count m))))
-  (testing (str "Testing find and get of " name "...")
-    (doseq [thing (seq s)]
-      (is (= (find m (k thing)) (clojure.lang.MapEntry. (k thing) thing)))
+  (doseq [thing (seq s)]
+    (testing (str "Testing find and get of " thing " in " name "." (standard-print m s))
+      (is (= (find m (k thing)) (kvp thing)))
       (is (= (get m (k thing)) thing))))
-  (testing (str "Testing nth of " name "...")
-    (let [e (vec (sort (seq s)))
-          f (fn f [v x]
-              (if (>= x (count v))
-                nil
-                (do
-                  (is (= (nth m x) (nth v x)))
-                  (recur v (inc x)))))]
-      (f e 0))))
+  (let [e (vec (sort (seq s)))]
+    ((fn [v x]
+            (if (>= x (count v))
+              nil
+              (do
+                (testing (str "Testing nth of " x " in " name "." (standard-print m v))
+                  (is (= (nth m x) (kvp x (nth v x)))))
+                  (recur v (inc x))))) e 0)))
 
 (defn test-ranges [name
                    ins-range
