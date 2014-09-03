@@ -140,8 +140,9 @@
           (map (fn [k v] (kvp k v))
                (range (count s))
                (sort (seq s)))))
+
 (defn standard-print [m s]
-  (str "\nThe tested map is:\n" m "\n\nThe tested coll is:\n" s))
+  (str "\nThe tested map is:\n" m "\nThe tested coll is:\n" s))
 
 (defn standard-tests [name m s]
   (testing (str "Testing the basics of " name "." (standard-print m s))
@@ -157,8 +158,11 @@
             (if (>= x (count v))
               nil
               (do
-                (testing (str "Testing nth of " x " in " name "." (standard-print m v))
-                  (is (= (nth m x) (kvp x (nth v x)))))
+                (testing (str "Testing nth of " x " in " name "."
+                              (standard-print m s)
+                              "\nThe testing vector is:\n"
+                              v)
+                  (is (= (nth m x) (kvp (nth v x)))))
                   (recur v (inc x))))) e 0)))
 
 (defn test-ranges [name
