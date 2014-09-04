@@ -165,7 +165,7 @@
          (:or [:black :black-leaf _ _ _ [:red a ky vy sy b]]
                [:black [:red a ky vy sy b] _ _ _ :black-leaf])
          ; =>
-         [:black a ky vy sy b]
+         (bubble :black a ky vy sy b)
          :else
          (let [[c l kx vx sx r] tree
                [kr vr l'] (remove-max l)]

@@ -144,44 +144,71 @@
 (defn standard-print [m s]
   (str "\nThe tested map is:\n" m "\nThe tested coll is:\n" s))
 
-(defn standard-tests [name m s]
-  (testing (str "Testing the basics of " name "." (standard-print m s))
+(defn index-bound-tests [name m]
+  (testing (str "Testing nth on out of bound indexes of " name ".")
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Index out of bounds." (nth m -1)))
+      (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Index out of bounds." (nth m (count m))))
+      (is (= (nth m -1 :default) :default))
+      (is (= (nth m (count m) :default) :default))))
+
+(defn absence-tests [name m s]
+  (doseq [thing (seq s)]
+    (testing (str "Testing find and get of absent things for " thing " in " name "." (standard-print m s))
+      (is (= (find m (k thing)) nil))
+      (is (= (get m (k thing)) nil)))))
+
+(defn standard-tests [name m]
+  (testing (str "Testing the basics of " name ".")
     (is (balanced? m))
     (is (valid-colors? m))
-    (is (= (count m) (actual-count m))))
+    (is (= (count m) (actual-count m)))))
+
+(defn presence-tests [name m s]
   (doseq [thing (seq s)]
     (testing (str "Testing find and get of " thing " in " name "." (standard-print m s))
       (is (= (find m (k thing)) (kvp thing)))
       (is (= (get m (k thing)) thing))))
-  (let [e (vec (sort (seq s)))]
     ((fn [v x]
-            (if (>= x (count v))
-              nil
-              (do
-                (testing (str "Testing nth of " x " in " name "."
-                              (standard-print m s)
-                              "\nThe testing vector is:\n"
-                              v)
-                  (is (= (nth m x) (kvp (nth v x)))))
-                  (recur v (inc x))))) e 0)))
+       (if (>= x (count v))
+         nil
+         (do
+           (testing (str "Testing nth of " x " in " name "."
+                         (standard-print m s)
+                         "\nThe testing vector is:\n"
+                         v)
+             (is (= (nth m x) (nth v x))))
+           (recur v (inc x)))))
+     (vec (sort (map kvp (seq s)))) 0))
 
 (defn test-ranges [name
                    ins-range
                    rm-range
                    rmn-range]
   (let [first-map (reduce i (->RandomAccessMap) ins-range)
-        first-img (reduce conj #{} ins-range)]
-    (standard-tests (str "insert on " name) first-map first-img)
+        first-img (reduce conj #{} ins-range)
+        insert-name (str "insert on " name)]
+    (standard-tests insert-name first-map)
+    (presence-tests insert-name first-map first-img)
+    (index-bound-tests insert-name first-map)
     (let [r-map (reduce r first-map rm-range)
-          r-img (reduce disj first-img rm-range)]
-      (standard-tests (str "remove on " name) r-map r-img))
-    (let [rn-map (reduce rn first-map rmn-range)
+          r-img (reduce disj first-img rm-range)
+          r-name (str "remove on " name)]
+      (standard-tests r-name r-map)
+      (presence-tests r-name r-map r-img)
+      (absence-tests r-name r-map rm-range)
+      (index-bound-tests r-name r-map))
+    #_(let [rn-map (reduce rn first-map rmn-range)
           rn-img (set (reduce vec-remove-nth (vec (sort first-img)) rmn-range))]
       (standard-tests (str "remove-nth on " name) rn-map rn-img))))
+
 (deftest empty-tests
   "Testing the empty maps."
-  (test-ranges "empty" '() '() '()))
+  (test-ranges "empty" '() '(1 2 3 4 5 :heyheyhey) '()))
 (deftest small-tests
   "Testing the small maps."
   (test-ranges "increasing order, 0 through 9" (range 10) '(1 3 5 6) '(5 4 3 2 1))
   (test-ranges "decreasing order, 9 through 0" (range 9 -1 -1) '(0 3 2 4) (repeat 3 0)))
+(deftest large-tests
+  "Testing the large maps."
+  (test-ranges "pretty big." (range 100) (range 0 50 2) (repeat 20 0))
+  (test-ranges "reverse big." (range 99 -1 -1) (range 20 50 3) (range 89 58 -1)))
