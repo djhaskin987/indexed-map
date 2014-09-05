@@ -156,7 +156,7 @@
       (let [[kr vr b'] (remove-max b)]
         [kr vr (bubble c a kx vx (+ 1 (size a) (size b')) b')]))))
 
-(defn- remove-raw
+(defn remove-raw
   "Compute a new tree with value removed, except unbalanced at first."
   [tree]
   (match tree
@@ -186,10 +186,10 @@
                   (< 0 condition) (let [new-tree (rm r)]
                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
                   :else (remove-raw tree)))))]
-    (match [(rm tree)]
-           [:double-black-leaf] :black-leaf
-           [:black-leaf] :black-leaf
-           [[_ l k v s r]] [:black l k v s r])))
+    (match (rm tree)
+           :double-black-leaf :black-leaf
+           :black-leaf :black-leaf
+           [_ l k v s r] [:black l k v s r])))
 
 (defn ram-find
   "Finds value x in tree"
@@ -214,24 +214,24 @@
             :else [k v]))))
 
 (defn remove-by-index
-  "Removes a pair based on rank."
+  "Removes a key/value pair from the map based on rank."
   [tree index df]
-  (let [rm (fn rm [t i]
+  (let [rm (fn rm [t x]
              (if (ram-empty? t)
-               (df t)
+               (df t x)
                (let [[c l k v _ r] t
-                     left-size (size l)
-                     condition (compare i left-size)]
+                     ls (size l)
+                     condition (compare x ls)]
                  (cond
-                  (< condition 0) (let [new-tree (rm l i)]
+                  (< condition 0) (let [new-tree (rm l x)]
                                     (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
-                  (< 0 condition) (let [new-tree (rm r (- index left-size 1))]
+                  (< 0 condition) (let [new-tree (rm r (- x ls 1))]
                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
-                  :else (remove-raw tree)))))]
-    (match [(rm tree index)]
-           [:double-black-leaf] :black-leaf
-           [:black-leaf] :black-leaf
-           [[_ l k v s r]] [:black l k v s r])))
+                  :else (remove-raw t)))))]
+    (match (rm tree index)
+           :double-black-leaf :black-leaf
+           :black-leaf :black-leaf
+           [_ l k v s r] [:black l k v s r])))
 
 (defn tree->seq
   "Convert a tree to a seq of its values, in-order."

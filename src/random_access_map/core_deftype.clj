@@ -97,11 +97,12 @@
        (remove-by-index
         tree
         index
-        (fn [t]
+        (fn [t x]
           (throw
            (ex-info "Tried to remove a value that didn't exist."
                     {:type :RandomAccessMap/dijoin-nth
                      :index index
+                     :recurse-index x
                      :tree tree})))))))
   clojure.lang.IFn
   (invoke [this n] (get this n))
