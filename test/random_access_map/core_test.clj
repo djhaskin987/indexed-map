@@ -216,24 +216,25 @@
       (presence-tests rn-name rn-map removed-result)
       (absence-tests rn-name rn-map removed-img)
       (index-bound-tests rn-name rn-map))))
-
-(deftest empty-tests
-  "Testing the empty maps."
-  (test-ranges "empty" '() '(1 2 3 4 5 :heyheyhey) '()))
-(deftest pretty-small-tests
-  "Testing the smallest of maps."
-  (test-ranges "poquito" (range 3) '(1 2 3) '())
-  (test-ranges "little" (range 7) '() (range 7)))
 (deftest small-tests
   "Testing the small maps."
   (test-ranges "increasing order, 0 through 9" (range 10) '(1 3 5 6) '(5 4 3 2 1))
   (test-ranges "decreasing order, 9 through 0" (range 9 -1 -1) '(0 3 2 4) (repeat 3 0)))
-(deftest midsize-tests
+(deftest pretty-small-tests
+  "Testing the smallest of maps."
+  (test-ranges "poquito" (range 3) '(1 2 3) '())
+  (test-ranges "little" (range 7) '() (range 7)))
+(deftest empty-tests
+  "Testing the empty maps."
+  (test-ranges "empty" '() '(1 2 3 4 5 :heyheyhey) '()))
+
+
+#_(deftest midsize-tests
   "A bit bigger, to find more errors."
   (test-ranges "increasing order, 10 to 30." (range 10 30) (range 10 30 4) (range 14 -1 -1))
   (test-ranges "increasing order, 20 to 30 and decreasing order, 70 to 90."
                (concat (range 20 30) (range 90 70 -1)) (range 90 70 -1) (repeat 5 4)))
-(deftest large-tests
+#_(deftest large-tests
   "Testing the large maps."
   (test-ranges "pretty big." (range 100) (range 0 50 2) (repeat 20 0))
   (test-ranges "reverse big." (range 99 -1 -1) (range 20 50 3) (range 89 58 -1)))

@@ -81,42 +81,42 @@
   "Ensures the given subtree stays balanced by rearranging black nodes
   that have at least one red child and one red grandchild"
   [tree]
-  (match [tree]
-         [(:or ;; Left child red with left red grandchild
+  (match tree
+         (:or ;; Left child red with left red grandchild
                [(:or :black :double-black) [:red [:red a kx vx _ b] ky vy _ c] kz vz _ d]
                ;; Left child red with right red grandchild
                [(:or :black :double-black) [:red a kx vx _ [:red b ky vy _ c]] kz vz _ d]
                ;; Right child red with left red grandchild
                [(:or :black :double-black) a kx vx _ [:red [:red b ky vy _ c] kz vz _ d]]
                ;; Right child red with right red grandchild
-               [(:or :black :double-black) a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])]
+               [(:or :black :double-black) a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])
          ; =>
          (update-size (decblack (color tree))
                       (update-size :black a kx vx b)
                       ky vy
                       (update-size :black c kz vz d))
-         [[:double-black [:negative-black
+         [:double-black [:negative-black
                           [:black a kw vw sw b]
                           kx vx _
                           [:black c ky vy _ d]]
            kz vz _
-           e]]
-           (update-size :black (update-size :black
-                                            (balance [:red a kw vw sw b])
-                                            kx vx c)
-            ky vy
-            (update-size :black d kz vz e))
+           e]
+           (update-size :black (balance (update-size :black
+                                                     [:red a kw vw sw b]
+                                                     kx vx c))
+                        ky vy
+                        (update-size :black d kz vz e))
          ; now the symmetric case ...
-         [[:double-black e kz vz _
+         [:double-black e kz vz _
            [:negative-black
             [:black d ky vy _ c]
             kx vx _
-            [:black b kw vw sw a]]]]
+            [:black b kw vw sw a]]]
                ; =>
             (update-size :black
                          (update-size :black e kz vz d)
                          ky vy
-                         (update-size :black c kx vx (balance [:red b kw vw sw a])))
+                         (balance (update-size :black c kx vx [:red b kw vw sw a])))
             :else
             tree))
 
@@ -145,18 +145,18 @@
      [(incblack c) (lighten l) k v s (lighten r)]
      [c l k v s r])))
 
-(declare remove-raw)
+(declare remove-node)
 
 (defn remove-max
   "Remove the maximum element of a tree."
   [tree]
   (let [[c a kx vx sx b] tree]
     (if (ram-empty? b)
-      [kx vx (remove-raw tree)]
+      [kx vx (remove-node tree)]
       (let [[kr vr b'] (remove-max b)]
         [kr vr (bubble c a kx vx (+ 1 (size a) (size b')) b')]))))
 
-(defn remove-raw
+(defn remove-node
   "Compute a new tree with value removed, except unbalanced at first."
   [tree]
   (match tree
@@ -181,11 +181,11 @@
                (let [[c l k v _ r] tree
                      condition (cmp key k)]
                  (cond
-                  (< condition 0) (let [new-tree (rm l)]
-                                    (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
-                  (< 0 condition) (let [new-tree (rm r)]
-                                    (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
-                  :else (remove-raw tree)))))]
+                   (< condition 0) (let [new-tree (rm l)]
+                                     (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+                   (< 0 condition) (let [new-tree (rm r)]
+                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
+                   :else (remove-node tree)))))]
     (match (rm tree)
            :double-black-leaf :black-leaf
            :black-leaf :black-leaf
@@ -227,7 +227,7 @@
                                     (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
                   (< 0 condition) (let [new-tree (rm r (- x ls 1))]
                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
-                  :else (remove-raw t)))))]
+                  :else (remove-node t)))))]
     (match (rm tree index)
            :double-black-leaf :black-leaf
            :black-leaf :black-leaf
