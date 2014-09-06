@@ -3,7 +3,8 @@ lein: lein2
 script: ./build
 
 jdk:
+    - oraclejdk8
     - oraclejdk7
-    - oraclejdk6
+    - openjdk8
     - openjdk7
     - openjdk6
