@@ -23,6 +23,8 @@ Simply run `lein jar` to get the jar file.
 ## Usage
 
 This map implements the `clojure.lang.IPersistentMap` protocol, as well as the `clojure.lang.Indexed` protocol.
+One additional function, `disjoin-nth`, is implemented, which takes an indexed associated with a
+key/value pair in the map and removes that pair.
 
 ## License
 
