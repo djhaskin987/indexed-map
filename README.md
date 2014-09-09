@@ -26,6 +26,7 @@ key/value pair in the map and removes that pair.
 _Things That Would Be Good_
 
 * Split the `balance` method into `lbalance` and `rbalance` for optimization purposes
+* Docstring for the disjoin-nth method
 * Implement a smarter `seq` implementation, one that would take `O(log(n))` time for any operation
 * Benchmarks, profiles and improvements!
 
