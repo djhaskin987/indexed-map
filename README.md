@@ -1,12 +1,12 @@
-# random-access-map
+# indexed-map
 
-[![Build Status](https://travis-ci.org/djhaskin987/random-access-map.png)](https://travis-ci.org/djhaskin987/random-access-map)
+[![Build Status](https://travis-ci.org/djhaskin987/indexed-map.png)](https://travis-ci.org/djhaskin987/indexed-map)
 
-A Clojure library that provides the random-access-map, a set which allows you to retreive
-and disjoin elements and key/value pairs from the map based on their index.
+A Clojure library that provides the indexed-map, a set which allows retrieval and
+removal from a sorted map using the index of the element in logarithmic time.
 
 ## Attribution
-_People whose ideas I stole_
+_People Whose Ideas I Stole_
 
 Matt Might has a [_great_ article](http://matt.might.net/articles/red-black-delete/)
 on how to perform functional red-black tree removal, without which this would
@@ -23,7 +23,7 @@ Simply run `lein jar` to get the jar file.
 ## Usage
 
 This map implements the `clojure.lang.IPersistentMap` protocol, as well as the `clojure.lang.Indexed` protocol.
-One additional function, `disjoin-nth`, is implemented, which takes an indexed associated with a
+One additional function, `disjoin-nth`, is implemented, which takes an index associated with a
 key/value pair in the map and removes that pair.
 
 ## License

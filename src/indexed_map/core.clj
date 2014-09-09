@@ -1,4 +1,4 @@
-(ns random-access-map.core
+(ns indexed-map.core
   (:require [clojure.core.match :refer [match]])
   (:gen-class))
 (load "core_functions")

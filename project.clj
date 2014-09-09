@@ -1,4 +1,4 @@
-(defproject random-access-map "1.0.0"
+(defproject indexed-map "1.0.0"
   :description "Retrieve and disjoin elements from a map based on an index."
   :url "http://djhaskin987.blogspot.com/2013/07/the-rankedset-optimizations-best-friend.html"
   :license {:name "Eclipse Public License"

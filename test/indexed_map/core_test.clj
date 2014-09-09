@@ -1,17 +1,22 @@
-(ns random-access-map.core-test
+(ns indexed-map.core-test
   (:require [clojure.test :refer :all]
             [clojure.core.match :refer [match]]
-            [random-access-map.core :refer :all]))
+            [indexed-map.core :refer :all]))
+
+(def indexed-map-empty? #'indexed-map.core/indexed-map-empty?)
+(def color #'indexed-map.core/color)
+(def ltree #'indexed-map.core/ltree)
+(def rtree #'indexed-map.core/rtree)
 
 (defn violates-red-invariant?
   "Determines whether there are any red-red parent-child pairs in the tree."
   [tree]
-  (if (ram-empty? tree)
+  (if (indexed-map-empty? tree)
     false
     (if (and (= (color tree) :red)
-             (or (and (not (ram-empty? (ltree tree)))
+             (or (and (not (indexed-map-empty? (ltree tree)))
                       (= :red (color (ltree tree))))
-                 (and (not (ram-empty? (rtree tree)))
+                 (and (not (indexed-map-empty? (rtree tree)))
                       (= :red (color (rtree tree))))))
       true
       (or (violates-red-invariant? (ltree tree))
@@ -21,12 +26,12 @@
   "Determines whether there are any red-red parent-child pairs in the tree."
   [tree]
   (let [list-builder (fn list-builder [t l]
-                       (if (ram-empty? t)
+                       (if (indexed-map-empty? t)
                          l
                          (if (and (= (color t) :red)
-                                  (or (and (not (ram-empty? (ltree t)))
+                                  (or (and (not (indexed-map-empty? (ltree t)))
                                            (= :red (color (ltree t))))
-                                      (and (not (ram-empty? (rtree t)))
+                                      (and (not (indexed-map-empty? (rtree t)))
                                            (= :red (color (rtree t))))))
                            (list-builder (rtree t) (list-builder (ltree t) (cons t l))))))]
     (list-builder tree '())))
@@ -34,7 +39,7 @@
 (defn height
   "Computes the height of a tree."
   [tree]
-  (if (ram-empty? tree)
+  (if (indexed-map-empty? tree)
     0
     (max (inc (height (ltree tree)))
          (inc (height (rtree tree))))))
@@ -42,7 +47,7 @@
 (defn black-height
   "Computes the black height of a tree."
   [tree]
-  (if (ram-empty? tree)
+  (if (indexed-map-empty? tree)
     1
     (let [node-count
           (if (= :black (color tree))
@@ -55,7 +60,7 @@
 (defn violates-black-invariant?
   "Determines whether tree has unequal black heights for its branches."
   [tree]
-  (if (ram-empty? tree)
+  (if (indexed-map-empty? tree)
     false
     (if (= (black-height (ltree tree)) (black-height (rtree tree)))
       false
@@ -63,7 +68,7 @@
 
 (defn naive-balanced?
   [t]
-    (if (ram-empty? t)
+    (if (indexed-map-empty? t)
       true
       ;; check heights recursively
       (let [l (ltree t)
@@ -108,7 +113,7 @@
                        [[c l k v s r]] (+ (rec l) (rec r) 1)
                        :else
                        (ex-info "Actual count called on a non-tree."
-                                {:type :ram-test/actual-count/invalid-input
+                                {:type :indexed-map-test/actual-count/invalid-input
                                  :tree tree})))]
     (rec t)))
 (defn kvp
@@ -194,7 +199,7 @@
                    ins-range
                    rm-range
                    rmn-range]
-  (let [first-map (reduce i (->RandomAccessMap) ins-range)
+  (let [first-map (reduce i (->IndexedMap) ins-range)
         first-img (reduce conj #{} ins-range)
         insert-name (str "insert on " name)]
     (standard-tests insert-name first-map)

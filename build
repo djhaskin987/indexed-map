@@ -6,10 +6,10 @@ set -x
 
 # It is assumed that the PWD is the root of the source code
 if [ ! -s "project.clj" ] || \
-    ! grep -q -E 'defproject *random-access-map' ./project.clj
+    ! grep -q -E 'defproject *indexed-map' ./project.clj
 then
     echo "This script must be run from the root of the source code for" >&2
-    echo "random-access-map." >&2
+    echo "indexed-map." >&2
     exit 1
 fi
 
