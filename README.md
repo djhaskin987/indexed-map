@@ -7,6 +7,10 @@ removal from a sorted map using the index of the element in logarithmic time.
 It is generic enough for wide use, but also contains the functionality needed to implement
 a ranked set, which I discuss [here](http://djhaskin987.blogspot.com/2013/07/the-rankedset-optimizations-best-friend.html).
 
+## Download
+
+You can download the jar or zip from the github release page. This project is also on [clojars](https://clojars.org/indexed-map)!
+
 ## Build
 
 Simply run `lein jar` to get the jar file.
