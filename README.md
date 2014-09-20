@@ -1,6 +1,7 @@
 # Indexed Map
 
 [![Build Status](https://travis-ci.org/djhaskin987/indexed-map.png)](https://travis-ci.org/djhaskin987/indexed-map)
+[![Clojars Project](http://clojars.org/indexed-map/latest-version.svg)](http://clojars.org/indexed-map)
 
 A Clojure library that provides the indexed-map, a set which allows retrieval and
 removal from a sorted map using the index of the element in logarithmic time.
