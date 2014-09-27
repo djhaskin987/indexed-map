@@ -72,52 +72,117 @@
          [c a k v s b] [(incblack c) a k v s b]
          :black-leaf :double-black-leaf
          :else tree))
+
 (defn- update-size
   [c l k v r]
   [c l k v (+ 1 (size l) (size r)) r])
 
-(defn- balance
+;  "Ensures the given subtree stays balanced by rearranging black nodes
+;  that have at least one red child and one red grandchild"
+
+(defn- left-simple-balance
   "Ensures the given subtree stays balanced by rearranging black nodes
-  that have at least one red child and one red grandchild"
+  that have at least one red child and one red grandchild. This is the
+  left 'full' balance function; it balances nodes with heavy left children,
+  and includes the more complex balance cases."
   [tree]
   (match tree
          (:or ;; Left child red with left red grandchild
-               [(:or :black :double-black) [:red [:red a kx vx _ b] ky vy _ c] kz vz _ d]
+               [:black [:red [:red a kx vx _ b] ky vy _ c] kz vz _ d]
                ;; Left child red with right red grandchild
-               [(:or :black :double-black) [:red a kx vx _ [:red b ky vy _ c]] kz vz _ d]
-               ;; Right child red with left red grandchild
-               [(:or :black :double-black) a kx vx _ [:red [:red b ky vy _ c] kz vz _ d]]
-               ;; Right child red with right red grandchild
-               [(:or :black :double-black) a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])
+               [:black [:red a kx vx _ [:red b ky vy _ c]] kz vz _ d])
+
          ; =>
-         (update-size (decblack (color tree))
+         (update-size :red
                       (update-size :black a kx vx b)
                       ky vy
                       (update-size :black c kz vz d))
+         :else
+         tree))
+
+(defn- right-simple-balance
+  "Ensures the given subtree stays balanced by rearranging black nodes
+  that have at least one red child and one red grandchild. This is the
+  right 'simple' balance function; it includes the insert balance cases,
+  together with the single-double-black removal case, as a freebie."
+  [tree]
+  (match tree
+         ;; right child unbalanced
+         (:or
+               ;; Right child red with left red grandchild
+               [:black a kx vx _ [:red [:red b ky vy _ c] kz vz _ d]]
+               ;; Right child red with right red grandchild
+               [:black a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])
+         ; =>
+         (update-size :red
+                      (update-size :black a kx vx b)
+                      ky vy
+                      (update-size :black c kz vz d))
+         :else
+         tree))
+
+(defn- left-full-balance
+  "Ensures the given subtree stays balanced by rearranging black nodes
+  that have at least one red child and one red grandchild. This is the
+  left 'simple' balance function; it includes the insert balance cases,
+  together with the single-double-black removal case, as a freebie."
+  [tree]
+  (match tree
          [:double-black [:negative-black
-                          [:black a kw vw sw b]
-                          kx vx _
-                          [:black c ky vy _ d]]
-           kz vz _
-           e]
-           (update-size :black (balance (update-size :black
-                                                     [:red a kw vw sw b]
-                                                     kx vx c))
-                        ky vy
-                        (update-size :black d kz vz e))
-         ; now the symmetric case ...
+                         [:black a kw vw sw b]
+                         kx vx _
+                         [:black c ky vy _ d]]
+          kz vz _
+          e]
+         (update-size :black (left-simple-balance (update-size :black
+                                                               [:red a kw vw sw b]
+                                                               kx vx c))
+                      ky vy
+                      (update-size :black d kz vz e))
+         (:or ;; Left child red with left red grandchild
+               [:double-black [:red [:red a kx vx _ b] ky vy _ c] kz vz _ d]
+               ;; Left child red with right red grandchild
+               [:double-black [:red a kx vx _ [:red b ky vy _ c]] kz vz _ d])
+         (update-size :black
+                      (update-size :black a kx vx b)
+                      ky vy
+                      (update-size :black c kz vz d))
+         :else
+         (left-simple-balance tree)))
+
+(defn- right-full-balance
+  "Ensures the given subtree stays balanced by rearranging black nodes
+  that have at least one red child and one red grandchild. This is the
+  right 'full' balance function; it balances nodes with heavy right children,
+  and includes the more complex balance cases."
+  [tree]
+  (match tree
+         ; "right-heavy"
          [:double-black e kz vz _
            [:negative-black
             [:black d ky vy _ c]
             kx vx _
             [:black b kw vw sw a]]]
-               ; =>
+            ; =>
             (update-size :black
                          (update-size :black e kz vz d)
                          ky vy
-                         (balance (update-size :black c kx vx [:red b kw vw sw a])))
-            :else
-            tree))
+                         (right-simple-balance (update-size
+                                                :black c kx vx
+                                                [:red b kw vw sw a])))
+
+         ;; Right child red with left red grandchild
+         (:or
+          [:double-black a kx vx _ [:red [:red b ky vy _ c] kz vz _ d]]
+          ;; Right child red with right red grandchild
+          [:double-black a kx vx _ [:red b ky vy _  [:red c kz vz _ d]]])
+         ; =>
+         (update-size :black
+                      (update-size :black a kx vx b)
+                      ky vy
+                      (update-size :black c kz vz d))
+         :else
+         (right-simple-balance tree)))
 
 (defn- insert-val
   "Inserts x in tree.
@@ -128,8 +193,8 @@
               (match tree
                      :black-leaf [:red :black-leaf kx vx 1 :black-leaf]
                      [c a ky vy sy b] (let [condition (cmp kx ky)]
-                                        (cond (< condition 0) (balance (update-size c (ins a) ky vy b))
-                                              (< 0 condition) (balance (update-size c a ky vy (ins b)))
+                                        (cond (< condition 0) (left-simple-balance (update-size c (ins a) ky vy b))
+                                              (< 0 condition) (right-simple-balance (update-size c a ky vy (ins b)))
                                               :else (df tree)))
                      :else
                      (throw (ex-info "Wrong kind of tree." {:type :indexed-map/insert-val :tree tree}))))
@@ -138,11 +203,10 @@
 (defn- bubble
   "Suds and bath water!"
   [c l k v s r]
-  (balance
    (if (or (= (color l) :double-black)
            (= (color r) :double-black))
      [(incblack c) (lighten l) k v s (lighten r)]
-     [c l k v s r])))
+     [c l k v s r]))
 
 (declare remove-node)
 
@@ -153,7 +217,7 @@
     (if (indexed-map-empty? b)
       [kx vx (remove-node tree)]
       (let [[kr vr b'] (remove-max b)]
-        [kr vr (bubble c a kx vx (+ 1 (size a) (size b')) b')]))))
+        [kr vr (left-full-balance (bubble c a kx vx (+ 1 (size a) (size b')) b'))]))))
 
 (defn- remove-node
   "Compute a new tree with value removed, except unbalanced at first."
@@ -164,11 +228,16 @@
          (:or [:black :black-leaf _ _ _ [:red a ky vy sy b]]
                [:black [:red a ky vy sy b] _ _ _ :black-leaf])
          ; =>
+         ; ??? I'm not balancing here anymore.
+         ; But I don't think I need to. Since I am essentially
+         ; getting rid of a red node, the black height remains the same. :)
          (bubble :black a ky vy sy b)
          :else
          (let [[c l kx vx sx r] tree
                [kr vr l'] (remove-max l)]
-           (bubble c l' kr vr (+ 1 (size l') (size r)) r))))
+           ; left balance cause the one that changed was the left one.
+           (right-full-balance (bubble c l' kr vr
+                                      (+ 1 (size l') (size r)) r)))))
 
 ; tree key -> tree
 (defn- remove-val
@@ -181,9 +250,11 @@
                      condition (cmp key k)]
                  (cond
                    (< condition 0) (let [new-tree (rm l)]
-                                     (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+                                     (right-full-balance
+                                      (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r)))
                    (< 0 condition) (let [new-tree (rm r)]
-                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
+                                     (left-full-balance
+                                      (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree)))
                    :else (remove-node tree)))))]
     (match (rm tree)
            :double-black-leaf :black-leaf
@@ -223,9 +294,11 @@
                      condition (compare x ls)]
                  (cond
                   (< condition 0) (let [new-tree (rm l x)]
-                                    (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r))
+                                    (right-full-balance
+                                     (bubble c new-tree k v (+ 1 (size r) (size new-tree)) r)))
                   (< 0 condition) (let [new-tree (rm r (- x ls 1))]
-                                    (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree))
+                                    (left-full-balance
+                                     (bubble c l k v (+ 1 (size l) (size new-tree)) new-tree)))
                   :else (remove-node t)))))]
     (match (rm tree index)
            :double-black-leaf :black-leaf

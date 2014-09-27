@@ -230,10 +230,32 @@
       (absence-tests rn-name rn-map (map val removed-img))
       (index-bound-tests rn-name rn-map))))
 
-(deftest small-tests
-  "Testing the small maps."
-  (test-ranges "increasing order, 0 through 9" (range 10) '(1 3 5 6) '(5 4 3 2 1))
-  (test-ranges "decreasing order, 9 through 0" (range 9 -1 -1) '(0 3 2 4) (repeat 3 0)))
+(deftest smallest-full-tests
+  "Testing the smallest full tree."
+  (test-ranges "increasing order" (range 3) '(0 2) '(0))
+  (test-ranges "decreasing order" (range 2 -1 -1) '(1) '(1 0)))
+
+(deftest over-smallest-tests
+  "Testing a full tree, plus one red node."
+  (test-ranges "increasing order 1" (range 4) '(3) '(2))
+  (test-ranges "increasing order 2" (range 4) '(0) '(0 1)))
+
+(deftest three-gen-full-tests
+  "Testing three-gen full tree."
+  (test-ranges "increasing order" (range 7) '(0 2 1) '(1 0 0 0))
+  (test-ranges "decreasing order" (range 6 -1 -1) '(1 2 0) '(2 2 1)))
+
+(deftest over-three-gen-full-tests
+  "Testing just three-gen full tree with 1 red node."
+  (test-ranges "increasing order" (range 8) '(3 2 4) '(2 2 1 1 0))
+  (test-ranges "decreasing order" (range 7 -1 -1) '(3 2 4) '(2 2 1 1 0)))
+
+(deftest three-gen-midway-tests
+  "Testing a mid-range (many red-node) tree."
+  (test-ranges "increasing order" (range 11) '(1 3 5 7 9) '(0 0 0 0 0 0))
+  (test-ranges "decreasing order" (range 10 -1 -1) '(2 4 6 8 10) '(2 2 1 1 0 0))
+  (test-ranges "increasing order, removed irregularly" (range 11) '(1 3 5 6) '(6 5 4 3 2 1))
+  (test-ranges "decreasing order, removed irregularly" (range 10 -1 -1) '(0 4 2 7) (repeat 3 0)))
 
 (deftest pretty-small-tests
   "Testing the smallest of maps."
